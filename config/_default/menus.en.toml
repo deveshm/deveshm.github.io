@@ -54,7 +54,7 @@
 
  [[main]]
    pre = "github"
-   name = "GitHub"
+   # name = "GitHub"
    url = "https://github.com/deveshm"
    weight = 40
 
