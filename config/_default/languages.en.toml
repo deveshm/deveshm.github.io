@@ -2,7 +2,7 @@ disabled = false
 languageCode = "en"
 languageName = "English"
 weight = 1
-title = "Blowfish"
+title = "Devesh's InfoSec Blog"
 
 [params]
   displayName = "EN"
