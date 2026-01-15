@@ -17,7 +17,7 @@ title = "Devesh's InfoSec Blog"
 [params.author]
   name = "Devesh Mitra"
   # email = "@gmail.com"
-  image = "img/blowfish_logo.png"
+  image = "Devesh-linkedin.png"
   imageQuality = 96
   headline = "My thoughts and interests."
   bio = "Welcome to my blog! My name is Devesh Mitra, and I work in the field of Information Security. I love learning new things, discussing deep topics and playing with new technology."
