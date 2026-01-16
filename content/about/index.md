@@ -10,7 +10,7 @@ Welcome to my blog! My name is Devesh Mitra, and I work in the field of Informat
 Here are a few of my interests and hobbies:
 
  - transferring consciousness into technology
- - 3d and 4d printing
+ - playing with new technologies
  - using memory techniques
  - cricket, tennis, squash, badminton
  - information security conferences and CTFs

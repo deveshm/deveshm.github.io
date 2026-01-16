@@ -43,20 +43,25 @@
 #  weight = 20
 
 [[main]]
- name = "Categories"
- pageRef = "categories"
- weight = 20
+ name = "About"
+ pageRef = "about"
+ weight = 30
 
 [[main]]
  name = "Tags"
  pageRef = "tags"
- weight = 30
+ weight = 20
 
- [[main]]
-   pre = "github"
-   # name = "GitHub"
-   url = "https://github.com/deveshm"
-   weight = 40
+[[main]]
+ pre = "github"
+ url = "https://github.com/deveshm"
+ weight = 40
+
+[[main]]
+ pre = "x-twitter"
+ name = " "
+ url = "https://x.com/d3v3shm1tra"
+ weight = 50
 
 # -- Footer Menu --
 # The footer menu is displayed at the bottom of the page, just before
