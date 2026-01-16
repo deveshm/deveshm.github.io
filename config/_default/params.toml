@@ -64,8 +64,8 @@ forgejoDefaultServer = "https://v11.next.forgejo.org"
 
 [article]
   showDate = true
-  showViews = false
-  showLikes = false
+  showViews = true
+  showLikes = true
   showDateOnlyInArticle = false
   showDateUpdated = false
   showAuthor = true
@@ -102,8 +102,8 @@ forgejoDefaultServer = "https://v11.next.forgejo.org"
   layoutBackgroundHeaderSpace = true # only used when heroStyle equals background
   showBreadcrumbs = false
   showSummary = false
-  showViews = false
-  showLikes = false
+  showViews = true
+  showLikes = true
   showTableOfContents = false
   showCards = false
   orderByWeight = false
@@ -120,8 +120,8 @@ forgejoDefaultServer = "https://v11.next.forgejo.org"
   showHero = false
   # heroStyle = "background" # valid options: basic, big, background, thumbAndBackground
   showBreadcrumbs = false
-  showViews = false
-  showLikes = false
+  showViews = true
+  showLikes = true
   showTableOfContents = false
   cardView = false
 
@@ -129,21 +129,21 @@ forgejoDefaultServer = "https://v11.next.forgejo.org"
   showHero = false
   # heroStyle = "background" # valid options: basic, big, background, thumbAndBackground
   showBreadcrumbs = false
-  showViews = false
-  showLikes = false
+  showViews = true
+  showLikes = true
   showTableOfContents = true
   groupByYear = false
   cardView = false
   cardViewScreenWidth = false
 
 [firebase]
-  # apiKey = "XXXXXX"
-  # authDomain = "XXXXXX"
-  # projectId = "XXXXXX"
-  # storageBucket = "XXXXXX"
-  # messagingSenderId = "XXXXXX"
-  # appId = "XXXXXX"
-  # measurementId = "XXXXXX"
+  apiKey = "AIzaSyDO50n5jL4iu8yoY6tiKMNAnKM58s9I1u4"
+  authDomain = "personal-blog-blowfish.firebaseapp.com"
+  projectId = "personal-blog-blowfish"
+  storageBucket = "personal-blog-blowfish.firebasestorage.app"
+  messagingSenderId = "409977838910"
+  appId = "1:409977838910:web:67a4d17efcddb361ffa06f"
+  measurementId = "G-6BT6326HLB"
 
 [fathomAnalytics]
   # site = "ABC12345"
