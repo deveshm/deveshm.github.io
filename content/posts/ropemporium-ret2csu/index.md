@@ -11,7 +11,7 @@ In this post, I will be explaining my solution for the Ret2CSU challenge from
 ROPEmporium. The challenge can be found here:
 https://ropemporium.com/challenge/ret2csu.html
 
-ROPEmporium challenges are awesome for learning Return Oriented Programming (ROP) with small and fairly easy-to-analyse binaries. Ret2CSU is the 8th and (currently) final stage of ROPEmporium and involves a binary with no custom ROP gadgets added to it. You have to work with the "attached code" added to the binary by the compiler, and your goal is to execute the `ret2win` function.
+ROPEmporium challenges are awesome for learning Return Oriented Programming (ROP) with small and fairly easy-to-analyse binaries. Ret2CSU is the 8th and (currently) final stage of ROPEmporium and involves **a binary with no custom ROP gadgets added to it**. You have to work with the "attached code" added to the binary by the compiler, and your goal is to execute the `ret2win` function.
 
 Here are some tools I recommend for these types of binary challenges:
 
@@ -85,7 +85,7 @@ The third argument (rdx) must be 0xdeadcafebabebeef
 I created a unique pattern with `pattern create` and then sent it to the program.
 The program crashes straight away and GDB PEDA shows me the following output:
 
-```
+```js {hl_lines=[24]}
 Program received signal SIGSEGV, Segmentation fault.
 [----------------------------------registers-----------------------------------]
 RAX: 0x601038 --> 0x0
@@ -152,7 +152,7 @@ with features such as:
 
  - creating a `pwntools` process object to allow us to interact with the process
  - parsing arguments to enable or disable remote GDB debugging
- - automatically executes checksec  on the binary and puts it in a comment in
+ - automatically executes `checksec`  on the binary and puts it in a comment in
  - our exploit
 
 Now to get to our actual ROP chain! Let's find the addresses of the symbols and
@@ -184,7 +184,7 @@ Using `objdump -D ret2csu -M intel` we find that the above `pop` gadget is
 actually in the `<__libc_csu_init>` section of the codebase, and has a few more
 pop instructions before it:
 
-```
+```js
 40089a:	5b -  -  -  -    	pop - rbx
 40089b:	5d -  -  -  -    	pop - rbp
 40089c:	41 5c -  -  -  - 	pop - r12
@@ -198,14 +198,14 @@ This must be the section the challenge title is referring to! So we look for
 other code in this section which we may be able to use to control RDX, and we
 find the following interesting code:
 
-```
+```js
 400880:	4c 89 fa -  -  -  	mov - rdx,r15
 400883:	4c 89 f6 -  -  -  	mov - rsi,r14
 400886:	44 89 ef -  -  -  	mov - edi,r13d
 400889:	41 ff 14 dc -  -   	call   QWORD PTR [r12+rbx*8]
 ```
 
-The above gadget, also found in the CSU section, uses the registers we control (`r12,r13,r14,r15`) in `mov` instructions and a `call` instruction. This is great!
+The above gadget, also **found in the CSU section**, uses the registers we control (`r12,r13,r14,r15`) in `mov` instructions and a `call` instruction. This is great!
 We can treat the call like a jmp instruction as long as we control the contents
 of `r12` and `rbx`, where the address jumped to is calculated as follows:
 
@@ -319,7 +319,7 @@ Disassembling all sections again and looking through for pointers to code (which
 I know has addresses after `0x400000`), I find some interesting parts added by
 the compiler again:
 
-```
+```js
 Disassembly of section .init_array:
 
 0000000000600e10 <__frame_dummy_init_array_entry>:
@@ -339,7 +339,7 @@ Disassembly of section .fini_array:
 
 Looks like at `0x600e10` I have the address `0x4006d0` and at `0x600e18` I have the address `0x4006a0`. So if I set `r12` to either of these pointers, I should be able get to these addresses. Let's have a look at the code at these addresses:
 
-```
+```js
 00000000004006a0 <__do_global_dtors_aux>:
 4006a0:	80 3d d1 09 20 00 00 	cmp - BYTE PTR [rip+0x2009d1],0x0 -  - # 601078 <completed.7696>
 4006a7:	75 17 -  -  -  - 	jne - 4006c0 <__do_global_dtors_aux+0x20>
@@ -370,7 +370,7 @@ within `<__libc_csu_init>`.
 
 So as long as this works, the following code should be executed after our call:
 
-```
+```js
 400889:	41 ff 14 dc -  -   	call   QWORD PTR [r12+rbx*8]
 40088d:	48 83 c3 01 -  -   	add - rbx,0x1
 400891:	48 39 dd -  -  -  	cmp - rbp,rbx

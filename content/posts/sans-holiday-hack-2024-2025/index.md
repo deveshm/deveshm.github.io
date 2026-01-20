@@ -5,6 +5,9 @@ description: "My write-up for the decrypt challenge from SANS Holiday Hack 2024-
 summary: "My write-up for the decrypt challenge from SANS Holiday Hack 2024-2025"
 tags: ["SANS", "HolidayHack", "KringleCon", "encryption"]
 ---
+
+## Intro
+
 In the SANS Holiday Hack Challenge (HHC) of 2024, there was a challenge named **Decrypt the Naughty-Nice List**, where we are provided with a file that has been encrypted with a ransomware called "Frostbit", and some artefacts from the machine the file was encrypted on. This was easily the hardest challenge of the SANS HHC 2024, and this is why I wanted to create my write-up for it.
 
 As part of the challenge, we are provided with the following files:
@@ -74,6 +77,7 @@ The URL for this ransom note page includes the following elements:
  - My UUID (likely different for every user of the game who tries to complete this challenge)
  - A "digest" value, that looks like a 16-byte hex value
 
+## Dev Mode
 
 Where do we go from here? Let's apply the next two hints related to **dev mode**, and **broadcasted MQTT messages**.
 
@@ -163,7 +167,7 @@ Note that all of these solutions require us to send special bytes in the filenam
 
 Below I will show how we can solve this problem using each of the above solutions. **The file we will target, and try to access, is the nginx private key that was mentioned in the MQTT hint**.
 
-# Solution 1: Double-Nonce
+## Solution 1: Double-Nonce
 
 
 As mentioned, this way requires repeating the nonce twice, and guessing the length of the whole filename payload so that the double-nonce lines up with the nonce on the server and cancels it out. My nonce from the PCAP was `fb7b442bb0713ec4`, so repeating that twice unhexlified, and prepending it to the target file, looks like this:
@@ -226,7 +230,7 @@ https://api.frostbit.app/view/%25fb%257b%2544%252b%25b0%2571%253e%25c4%25fb%257b
 
 Unfortunately, as we do not know the length of the file contents before solving the challenge, we need to guess one of these lengths. The next two solutions do not require us to guess this length.
 
-# Solution 2: Brute Force 16 Bytes
+## Solution 2: Brute Force 16 Bytes
 
 
 The second solution involves brute forcing 16 bytes after our filename. Each byte will zero out its respective byte in the digest.
@@ -281,7 +285,7 @@ Note that these solutions are dependent on my UUID, as it is connected to my non
 
 **The second solution was able to successfully brute force bytes that zero out the digest, while not requiring us to guess the length of the payload.**
 
-# Solution 3: Inverse of 16 bytes
+## Solution 3: Inverse of 16 bytes
 
 The third solution is the cleanest of them all. This solution does not require us to guess the length of the payload, AND does not even require knowledge of the nonce.
 
@@ -304,7 +308,7 @@ And a similar payload for accessing `/etc/passwd`: https://api.frostbit.app/view
 
 **As mentioned, this solution works even without knowing the nonce, and uses very minimal calculations.**
 
-# Final Decryption
+## Final Decryption
 
 
 The final decryption step involves using what we know to perform two stages of decryption:

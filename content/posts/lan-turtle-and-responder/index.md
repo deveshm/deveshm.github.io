@@ -6,7 +6,7 @@ summary: "Learn about the LAN Turtle and Responder, and how to defend against th
 tags: ["lanturtle", "responder", "defense"]
 ---
 
-The LAN turtle is a physical device sold by Hak5 that provides the user remote access to the network it is connected to. It comes with a female Ethernet port and a male USB port, allowing it to be connected to a network and a computer.
+The **LAN turtle** is a physical device sold by Hak5 that provides the user remote access to the network it is connected to. It comes with a female Ethernet port and a male USB port, allowing it to be connected to a network and a computer.
 
 The LAN turtle has modules you can utilise in programs that you write for the device. These modules include functionality such as:
 
@@ -16,9 +16,9 @@ The LAN turtle has modules you can utilise in programs that you write for the de
 
 Thus the device can be used as a stealthy way to have a **reverse connection from a victim network to your attacker machine**.
 
-Responder is a tool for listening on the network in a windows domain environment, and responding to LLMNR and NBNS requests seen on the network. It has additional support for listening and responding to HTTP, DHCP and DNS requests.
+**Responder** is a tool for listening on the network in a windows domain environment, and **responding to LLMNR and NBNS requests seen on the network**. It has additional support for listening and responding to HTTP, DHCP and DNS requests.
 
-Both these tools together allow an attacker to easily sniff for Windows Domain credentials on a victim network. You simply install and configure responder on the LAN Turtle, and plug it in to the victim network via ethernet and USB. This works great for getting credentials out of a locked computer or laptop, as the machine usually still sends out network based requests even when it is locked. Responder will respond to such requests (e.g. WPAD requests, browser traffic) and capture any credentials that the laptop sends (e.g. HTTP Basic Auth, NetNTLM and NTLM auth).
+Both these tools together allow an attacker to easily sniff for Windows Domain credentials on a victim network. You simply install and configure responder on the LAN Turtle, and plug it in to the victim network via ethernet and USB. This works great for getting credentials out of a locked computer or laptop, as the machine usually still sends out network based requests even when it is locked. Responder will respond to such requests (e.g. WPAD requests, browser traffic) and **capture any credentials that the laptop sends** (e.g. HTTP Basic Auth, NetNTLM and NTLM auth).
 
 This is a difficult attack to protect from, especially because ethernet adapters are allowed to be plugged in and installed on a locked machine, even on newer operating systems. Additionally, computers trust their local network and send out all types of traffic to these attached ethernet adapters.
 

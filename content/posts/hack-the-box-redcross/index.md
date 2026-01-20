@@ -11,6 +11,8 @@ This is my write-up for the HackTheBox Machine named RedCross. As usual, a large
 
 Let's get straight into it!
 
+## Write-up
+
 A quick top 10000 TCP port scan reveals the following ports as open:
 
 ```c {hl_lines=[1]}
@@ -62,7 +64,7 @@ messaging system 0.3b`. The most likely vulnerability in a page like this is a
 Cross Site Scripting (XSS) vulnerability, where if the administrator views our
 submitted messages, we may be able to steal their session token.
 
-So let's try submitting the following XSS payload in all the fields in the
+So let's try submitting the following **XSS payload** in all the fields in the
 contact form (including request title, details, and contact phone):
 
 ```html
@@ -77,7 +79,7 @@ field, the website complains that we are trying to "do something nasty".
 However, if we only include the payload in the contact phone field, the website
 doesn't complain.
 
-After a few seconds, we see a cookie sent to us from the RedCross machine!
+After a few seconds, we see a **cookie sent to us** from the RedCross machine!
 
 ```c {hl_lines=[1]}
 $ python -m SimpleHTTPServer 8081
@@ -198,7 +200,7 @@ Interesting! We now have another login page!
 Unfortunately, trying Penelope's or Charles' credentials on this login page did
 not work, and returned the error: `Not enough privileges`. Additionally, we were
 unable to crack the admin user's hash from the database. However, I remembered
-that we received the admin user's `PHPSESSID` only because they had viewed our
+that we **received the admin user's `PHPSESSID`** only because they had viewed our
 XSS payload from the admin panel. So, we set the `PHPSESSID` cookie again to the
 same value as the one we used for the `intra` website, and are greeted with the
 the actual admin panel!
@@ -287,10 +289,10 @@ void cmdAR(char **a, char *action, char *ip){
 }
 ```
 
-This looks interesting! Maybe this source code is for network management
-functionality provided in the admin panel! Testing out the functionality
-provided to us on the firewall management page on admin.redcross.htb, we see the
-following request being sent to the server when adding a new IP:
+This looks interesting! Maybe this source code is for **network management
+functionality provided in the admin panel**! Testing out the functionality
+provided to us on the firewall management page on `admin.redcross.htb`, we see the
+following **request being sent to the server when adding a new IP**:
 
 ```http
 POST /pages/actions.php HTTP/1.1
@@ -313,7 +315,7 @@ The possible vulnerabilities I could think of here would either be a buffer
 overflow due to the uses of `strcpy` in the C script, or an OS command injection
 vulnerability due to the arguments being passed into the `execvp` function.
 
-After some trial and error, I was able to get OS command injection working with
+After some trial and error, I was able to get **OS command injection** working with
 the `ip` parameter and using an action of `deny`:
 
 ```http
@@ -422,8 +424,8 @@ ERROR:  permission denied for relation passwd_table
 Unfortunately I could not specify the `uid` of the user I added, but after looking
 through `actions.php`, I found that, as `unixusrmgr`, I did have permissions to fill
 in the `username`, `passwd`, `gid` and `homedir` fields. The easiest way I could think
-of to use this to get root was to simply set the `gid` of my new user to the ID of
-the `sudo` group, which would give me the permissions to `sudo` to `root`.
+of to use this to get root was to simply **set the `gid` of my new user to the ID of
+the `sudo` group**, which would give me the permissions to `sudo` to `root`.
 
 We find the ID of the `sudo` group as follows:
 

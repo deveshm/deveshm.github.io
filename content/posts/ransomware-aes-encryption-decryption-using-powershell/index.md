@@ -7,9 +7,9 @@ tags: ["encryption", "ransomware", "AES", "PowerShell"]
 ---
 I really enjoyed this year's SANS Holiday Hack (2018-19)! There were many great challenges, and many things to learn.
 
-My favourite challenge was a ransomware based challenge where we were asked to analyse a live malware sample which was based off the WannaCry ransomware.
+My favourite challenge was a **ransomware based challenge** where we were asked to analyse a live malware sample which was based off the WannaCry ransomware.
 
-The malware was in the form of a word document (.docm) with a macro inside it that executed PowerShell. Once you decode the PowerShell code and debug it, you see functions provided for encrypting and decrypting files. Not only is this code super interesting, but also helps show how a well designed ransomware works. Although I **don't condone the use of ransomware**, I find it has an interesting problem with an even more interesting solution.
+The malware was in the form of a word document (`.docm`) with a macro inside it that executed PowerShell. Once you decode the PowerShell code and debug it, you see functions provided for encrypting and decrypting files. Not only is this code super interesting, but also helps show how a well designed ransomware works. Although I **don't condone the use of ransomware**, I find it has an interesting problem with an even more interesting solution.
 
 The problems that ransomware creators have:
 * The ransomware should be able to encrypt files offline, while still being able to decrypt them if the software is back online
@@ -28,14 +28,14 @@ For people who like pictures, here's a good simple explanation of how WannaCry w
 https://sensorstechforum.com/wp-content/uploads/2017/05/sensorstechforum-remove-file-encryption-of-wannacry-2-0-ransomware.jpg
 
 The benefits of the solution:
-* Symmetric crypto is faster, but has the drawback that the encryption and decryption key is the same
+* **Symmetric crypto is faster**, but has the drawback that the encryption and decryption key is the same
 * The ransomware does not need to be online as the key used for encryption is generated offline
-* Asymmetric crypto protects the symmetric encryption key, and makes it easy for the ransomware author to decrypt it with their private key
+* **Asymmetric crypto protects the symmetric encryption key**, and makes it easy for the ransomware author to decrypt it with their private key
 * The ransomware authors do not need access to the compromised host to provide the decryption key
 
 The cipher used in the SANS Holiday Hack Ransomware challenge was AES. The codebase in the ransomware included code for both encrypting and decrypting files.
 
-The following is the code provided for encrypting and decrypting files for the wannacookie ransomware (the ransomware provided in the SANS Holiday Hack challenges). It includes a ```$enc_it``` parameter to switch between encrypting and decrypting. I have also provided the ```$key``` parameter which is the actual key used to encrypt Alabaster's elf database in the challenge.
+The following is the powershell code provided for encrypting and decrypting files for the wannacookie ransomware (the ransomware provided in the SANS Holiday Hack challenges). It includes a ```$enc_it``` parameter to switch between encrypting and decrypting. I have also provided the ```$key``` parameter which is the actual key used to encrypt Alabaster's elf database in the challenge.
 
 ```powershell
 function H2B {

