@@ -11,7 +11,7 @@ This is my write-up for the HackTheBox Machine named RedCross. As usual, a large
 
 Let's get straight into it!
 
-## Write-up
+## Enumeration
 
 A quick top 10000 TCP port scan reveals the following ports as open:
 
@@ -63,6 +63,8 @@ the redcross website. We also notice that the footer of the website says `eb
 messaging system 0.3b`. The most likely vulnerability in a page like this is a
 Cross Site Scripting (XSS) vulnerability, where if the administrator views our
 submitted messages, we may be able to steal their session token.
+
+## Gaining an initial foothold
 
 So let's try submitting the following **XSS payload** in all the fields in the
 contact form (including request title, details, and contact phone):
@@ -204,6 +206,8 @@ that we **received the admin user's `PHPSESSID`** only because they had viewed o
 XSS payload from the admin panel. So, we set the `PHPSESSID` cookie again to the
 same value as the one we used for the `intra` website, and are greeted with the
 the actual admin panel!
+
+## Getting a shell
 
 Now that we are logged in to the admin panel, we look around at what
 functionality we have. The first link is for user management, where we can
@@ -363,8 +367,11 @@ uid=33(www-data) gid=33(www-data) groups=33(www-data)
 
 Woot! This time we have a non-restricted shell. Looking for the user flag, I
 find `/home/penelope/user.txt` exists, however I cannot open the file as it is
-owned by penelope and not world readable. Looking at other interesting files, I
-see a lot of passwords in the PHP files used for the admin panel:
+owned by penelope and not world readable.
+
+## Privilege Escalation
+
+Looking at other interesting files, I see a lot of passwords in the PHP files used for the admin panel:
 
 ```c {hl_lines=[1]}
 www-data@redcross:/var/www/html/admin/pages$ grep password * -Hn

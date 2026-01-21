@@ -10,6 +10,8 @@ This is my write-up for the HackTheBox Machine named Sizzle. I have to give a la
 
 Let's get straight into it!
 
+## Enumeration
+
 A TCP scan on all ports reveals the following ports as open:
 `21,53,80,135,139,389,443,445,464,593,636,3268,3269,5986,9389,47001`
 
@@ -101,6 +103,8 @@ local: test.txt remote: test.txt
 ```
 
 We find no files publicly available on the FTP server, and get an `Access Denied` error when trying to upload files.
+
+## Gaining an initial foothold
 
 Unfortunately, this is where I was stuck for a while. I enumerated the different SMB shares and the files and folders inside but found nothing that stood out for initial compromise. The following folders were found in the `Department Shares` share:
 
@@ -260,6 +264,8 @@ Password:
 
 Looking through all the open ports again, we could possibly try `amanda`'s credentials on the FTP server, or look at the other windows services such as LDAP on port 3268 or WinRM on port 5968.
 
+## Getting a shell
+
 I'll save the trouble and skip to what actually worked. It took a lot of researching, but I eventually found some very interesting ways to authenticate and interact with WinRM from a linux machine:
  - https://blog.rapid7.com/2012/11/08/abusing-windows-remote-management-winrm-with-metasploit/
  - https://4sysops.com/archives/powershell-remoting-between-windows-and-linux/
@@ -359,7 +365,7 @@ PS > whoami
 htb\amanda
 ```
 
----
+## Lateral Movement via Kerberoasting
 
 OK although we did all that work to get our first shell, unfortunately we still don't have `user.txt`! Looking around in Amanda's desktop, Documents folder, and Downloads folder, we find nothing of interest.
 
@@ -538,7 +544,7 @@ a6ca1f8*************************
 
 FINALLY! :D
 
----
+## Privilege Escalation via DCSync
 
 So, let's now move on to privesc!
 

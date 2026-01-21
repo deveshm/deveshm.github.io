@@ -1,8 +1,8 @@
 ---
 draft: true
-title: "LAN Turtle + Responder, how to defend"
+title: "SANS Holiday Hack 2025-2026"
 date: 2026-01-16
-description: "Learn about the LAN Turtle and Responder, and how to defend against these technologies"
-summary: "Learn about the LAN Turtle and Responder, and how to defend against these technologies"
-tags: ["lanturtle", "responder", "defense"]
+description: "Read my write-up for my favourite challenges from SANS Holiday Hack 2025-2026"
+summary: "Read my write-up for my favourite challenges from SANS Holiday Hack 2025-2026"
+tags: ["SANS", "HolidayHack", "KringleCon"]
 ---

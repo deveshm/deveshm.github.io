@@ -6,7 +6,7 @@ summary: "My write-up for the decrypt challenge from SANS Holiday Hack 2024-2025
 tags: ["SANS", "HolidayHack", "KringleCon", "encryption"]
 ---
 
-## Intro
+# Intro
 
 In the SANS Holiday Hack Challenge (HHC) of 2024, there was a challenge named **Decrypt the Naughty-Nice List**, where we are provided with a file that has been encrypted with a ransomware called "Frostbit", and some artefacts from the machine the file was encrypted on. This was easily the hardest challenge of the SANS HHC 2024, and this is why I wanted to create my write-up for it.
 
@@ -77,7 +77,7 @@ The URL for this ransom note page includes the following elements:
  - My UUID (likely different for every user of the game who tries to complete this challenge)
  - A "digest" value, that looks like a 16-byte hex value
 
-## Dev Mode
+# Using Dev Mode
 
 Where do we go from here? Let's apply the next two hints related to **dev mode**, and **broadcasted MQTT messages**.
 
@@ -154,6 +154,8 @@ Let's first get an understanding of how the `_compute_hash` function works:
 1. The second for loop performs a rotating bitwise AND of the "midway hash result" with a XOR of the nonce with the filename
 
 When exploiting the vulnerability in this calculation, we aim to be able to predict the digest of any file of our choice. We need to do this **without knowing the file contents** (since we are trying to access other files on the filesystem), and only knowing the nonce.
+
+# Final Solution(s)
 
 We are now at the hardest part of this challenge. After discussions with some smart friends I made on discord, we gathered that this challenge can be solved in a few different ways. All ways involve forcing the digest to be full of `0`s i.e. 16 bytes of `0x00`. Looking at the final loop, if we can force `xrd` to be 0, we can also force `hash_result` to be 0, as `hash_result` is a bitwise `AND` of the "midway hash result" and "xrd". **Here is a summary of the ways we can achieve this objective:**
 
@@ -308,7 +310,7 @@ And a similar payload for accessing `/etc/passwd`: https://api.frostbit.app/view
 
 **As mentioned, this solution works even without knowing the nonce, and uses very minimal calculations.**
 
-## Final Decryption
+# Post-exploitation Decryption Step
 
 
 The final decryption step involves using what we know to perform two stages of decryption:
