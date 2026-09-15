@@ -10,7 +10,7 @@ Imagine a world where Autonomous Security Agents (ASAs) are the standard; where 
 
 This means:
 
- - **Real-time Remediation**: As soon as a software flaw is discovered, a defensive agent drafts, tests, and deploys a micro-patch across the entire network.
+ - **Real-time Remediation**: As soon as a software flaw is discovered, a defensive agent drafts, tests, and deploys a micro-patch across the entire network. These may come in the form of ACL changes, network configuration changes, or a software patch / hardening change.
 
  - **Dynamic Defense**: Instead of manually-configured firewalls and host intrusion systems, the network behaves like an immune system. If a defensive agent detects a novel attack pattern, it can instantly "quarantine" a segment of the network or rewrite access rules to neutralize the threat.
 
@@ -32,7 +32,7 @@ However, small players will emerge as start-ups and ventures that seek to improv
 
 The most fascinating (and scary) part of this world is the unpredictability. We might see "emergent" defense strategies where AI agents create complex, maze-like network structures that no human engineer could navigate, simply because it's the most mathematically secure configuration.
 
-We may see defensive AI agents quarantine particular employees pre-emptively, if they perform risky behaviour, who are then forced to prove themselves innocent (similar to the movie [Mercy](https://www.imdb.com/title/tt31050594/)). The purpose and end-goal of these ASAs will have to be definied extremely well.
+We may see defensive AI agents quarantine particular employees preemptively, if they perform risky behaviour, who are then forced to prove themselves innocent (similar to the movie [Mercy](https://www.imdb.com/title/tt31050594/)). The purpose and end-goal of these ASAs will have to be defined extremely well.
 
 The skills required in such a world, including debugging the output of agents, and reviewing why the agents made certain decisions (analyzing their chain-of-thought) will become more and more sought-after!
 
@@ -40,4 +40,6 @@ The skills required in such a world, including debugging the output of agents, a
 
 Live and Learn!
 
-If you are more interested in the **ML side of debugging** e.g. model-agnostic methods for interpreting black box models, definitily check out **"Interpretable Machine Learning: A Guide for Making Black Box Models Explainable"** at https://christophm.github.io/interpretable-ml-book/
+If you are more interested in the **ML side of debugging** e.g. model-agnostic methods for interpreting black box models, definitely check out **"Interpretable Machine Learning: A Guide for Making Black Box Models Explainable"** at https://christophm.github.io/interpretable-ml-book/
+
+Also check out [OpenAI's blogpost](https://openai.com/index/the-defenders-window/) after the OpenAI-HuggingFace incident, which was a bit of a wake-up call for the cyber security industry.
