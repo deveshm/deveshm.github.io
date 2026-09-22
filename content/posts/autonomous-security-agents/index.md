@@ -42,4 +42,4 @@ Live and Learn!
 
 If you are more interested in the **ML side of debugging** e.g. model-agnostic methods for interpreting black box models, definitely check out **"Interpretable Machine Learning: A Guide for Making Black Box Models Explainable"** at https://christophm.github.io/interpretable-ml-book/
 
-Also check out [OpenAI's blogpost](https://openai.com/index/the-defenders-window/) after the OpenAI-HuggingFace incident, which was a bit of a wake-up call for the cyber security industry.
+Also check out [OpenAI's BlackHat presentation](https://www.youtube.com/watch?v=87DyyMV0kCY) after the OpenAI-HuggingFace incident, which was a bit of a wake-up call for the cyber security industry, showing how autonomous agents could perform all steps of the cyber kill-chain without a human in the loop.
