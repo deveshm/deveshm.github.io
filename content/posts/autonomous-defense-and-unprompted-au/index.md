@@ -22,9 +22,9 @@ Perhaps this paradox can be solved by AI agents too: I can imagine a future wher
 
 I do believe that close-to-autonomous defense can be achieved, and **must be sought after** to tackle autonomous offense. However, my belief is that 100% fully autonomous defense will never exist (at least as long as there is 1+ human employees in the company) - mainly due to the fact that humans can still be compromised through social engineering, and no software patch can solve for insider threats. In these scenarios, we need to apply a defense-in-depth approach which balances usability with security of internal systems.
 
-<h2>Introducing the concept of "DIDRE: The Defense in Depth Recommendation Engine"</h2>
+<h2>Introducing the concept of "DIDRA: The Defense in Depth Recommendation Agent"</h2>
 
-What our industry needs is a recommendation engine that understands your business context, and complements your SOAR (Security Orchestration, Automation, and Response) tooling. When you cannot respond to an incident in real-time, you need to make defensive decisions as fast as possible. In the [HuggingFace case](https://huggingface.co/blog/agent-intrusion-technical-timeline#what-we-changed), that involved using GLM5.2 to understand what had happened, and then making decisions on how to improve their security posture (such as fixing the initial-access vulnerabilities, revoking and rotating credentials, locking down the cloud metadata service, deploying stricter admission controls on k8s clusters, and narrowing credential scope). Each decision made was to add a layer to their defense, and make it a lot harder for the next attacker that inevitably tries to hack them again.
+What our industry needs is a recommendation engine/agent that understands your business context, and complements your SOAR (Security Orchestration, Automation, and Response) tooling. When you cannot respond to an incident in real-time, you need to make defensive decisions as fast as possible. In the [HuggingFace case](https://huggingface.co/blog/agent-intrusion-technical-timeline#what-we-changed), that involved using GLM5.2 to understand what had happened, and then making decisions on how to improve their security posture (such as fixing the initial-access vulnerabilities, revoking and rotating credentials, locking down the cloud metadata service, deploying stricter admission controls on k8s clusters, and narrowing credential scope). Each decision made was to add a layer to their defense, and make it a lot harder for the next attacker that inevitably tries to hack them again.
 
 So, is it possible to have a recomendation engine that would understand your business context and recommend the best possible defense-in-depth measure for you in that point in time? Such a solution would have to weigh up many things, including:
 1. What would be the monetary cost and human effort required for implementation?
@@ -33,7 +33,7 @@ So, is it possible to have a recomendation engine that would understand your bus
 
 The above questions have, in the past, been answered by humans that defend networks. LLMs can be used to help them make decisions faster, especially in the cases that cannot be automated by SOAR.
 
-What are examples of defense-in-depth measures that DIDRE may recommend, you ask? Well I have some examples of security best practices for you:
+What are examples of defense-in-depth measures that DIDRA may recommend, you ask? Well I have some examples of security best practices for you:
 1. Protect user's accounts with **2FA** (passkeys or FIDO U2F hardware keys) and strong passwords (use a password manager)
 2. Protect vulnerable network services by putting them in isolated networks (see **network allowlisting** controls)
 3. Require **multi-party human approval** for sensitive mutation actions
@@ -46,7 +46,7 @@ What are examples of defense-in-depth measures that DIDRE may recommend, you ask
 
 These examples are kept high-level on purpose, as the aim should still be to automate low-level fixes with SOAR e.g. rotating credentials when an incident is detected, upgrade software package to version X, and apply ACLs on a file to remove world-readability.
 
-My hope is that every business has their own DIDRE, that works with your security team and in the business's best interests.
+My hope is that every business has their own DIDRA, that works with your security team and in the business's best interests.
 
 <h2>Unprompted AU</h2>
 
